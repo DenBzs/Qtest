@@ -95,12 +95,6 @@ function applyQplTheme(key) {
         btn.style.opacity   = active ? '1' : '0.4';
         btn.style.transform = active ? 'scale(1.2)' : 'scale(1)';
     });
-    // 태그 색상 갱신 (테마 변경 시 기존 행 업데이트)
-    menu.querySelectorAll('.qpl-tag').forEach(tag => {
-        tag.style.background  = t.accent + '18';
-        tag.style.borderColor = t.accent + '44';
-        tag.style.color       = t.accent;
-    });
     // active row 배경 갱신
     menu.querySelectorAll('.qpl-row.qpl-active').forEach(row => {
         row.style.background = t.accent + '18';
@@ -812,7 +806,7 @@ function createRow(avatarId, editMode = false) {
             </div>
             <div class="qpl-info">
                 <span class="qpl-name">${safeName}</span>
-                ${safeTitle ? `<span class="qpl-tag" style="background:${t.accent}18;border-color:${t.accent}44;color:${t.accent};">${safeTitle}</span>` : ''}
+                ${safeTitle ? `<span class="qpl-tag">${safeTitle}</span>` : ''}
             </div>
             ${!editMode ? `
             <div class="qpl-row-actions">
