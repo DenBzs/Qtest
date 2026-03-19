@@ -390,8 +390,9 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     inset: 0;
     z-index: 40000;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
+    padding-bottom: 90px;
     background: rgba(0,0,0,0.35);
     backdrop-filter: blur(2px);
 }
