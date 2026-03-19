@@ -1,5 +1,5 @@
 {
-    "display_name": "🎭페르소나QL",
+    "display_name": "🎭test",
     "loading_order": 1,
     "requires": [],
     "optional": [],
@@ -7,6 +7,6 @@
     "css": "style.css",
     "author": "Custom",
     "version": "1.0.0",
-    "homePage": "https://github.com/DenBzs/Quick-Persona-List",
+    "homePage": "https://github.com/DenBzs/Qtest",
     "auto_update": false
 }
