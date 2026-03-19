@@ -95,6 +95,17 @@ function applyQplTheme(key) {
         btn.style.opacity   = active ? '1' : '0.4';
         btn.style.transform = active ? 'scale(1.2)' : 'scale(1)';
     });
+    // 태그 색상 갱신 (테마 변경 시 기존 행 업데이트)
+    menu.querySelectorAll('.qpl-tag').forEach(tag => {
+        tag.style.background  = t.accent + '18';
+        tag.style.borderColor = t.accent + '44';
+        tag.style.color       = t.accent;
+    });
+    // active row 배경 갱신
+    menu.querySelectorAll('.qpl-row.qpl-active').forEach(row => {
+        row.style.background = t.accent + '18';
+        row.style.setProperty('--qpl-active-bar', t.accent);
+    });
 }
 
 /** @type {Popper.Instance|null} */
@@ -818,25 +829,23 @@ function createRow(avatarId, editMode = false) {
         </div>
     `);
 
-    // active row: 테마 accent 배경 + left bar 색
+    // active row: 테마 accent 배경 + left bar CSS var
     if (isActive) {
         $row.css('background', t.accent + '18');
-        $row.css('--qpl-active-bar', t.accent);
+        $row[0].style.setProperty('--qpl-active-bar', t.accent);
     }
 
-    // active 색 즉시 적용
-    if (!editMode) {
-        if (fav)    $row.find('.qpl-row-fav-btn').css('color', t.accent);
-        if (linked) $row.find('.qpl-row-char-btn').css('color', t.accent);
-        if (locked) $row.find('.qpl-pin-btn').css('color', t.accent);
+    // active 색: 핀만 accent, 별/캐릭터는 CSS 고정색이 담당
+    if (!editMode && locked) {
+        $row.find('.qpl-pin-btn').css('color', t.accent);
     }
 
     if (!editMode) {
         $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
-            // 잔상 방지: 클릭 즉시 active 클래스 교체 (창 닫지 않음)
-            $('#qplMenu .qpl-row').removeClass('qpl-active');
-            $row.addClass('qpl-active').css('background', t.accent + '18');
-            $('#qplMenu .qpl-row:not(.qpl-active)').css('background', '');
+            const accentColor = t.accent;
+            $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
+            $row.addClass('qpl-active').css('background', accentColor + '18');
+            $row[0].style.setProperty('--qpl-active-bar', accentColor);
             await setUserAvatar(avatarId);
             updateButtonState();
         });
@@ -847,7 +856,6 @@ function createRow(avatarId, editMode = false) {
             toggleFavorite(avatarId);
             const now = isFavorite(avatarId);
             $(e.currentTarget).toggleClass('active', now)
-                .css('color', now ? t.accent : '')
                 .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
             // 페르소나 패널 별 버튼 동기화
@@ -870,7 +878,6 @@ function createRow(avatarId, editMode = false) {
             toggleCharPersona(cid, avatarId);
             const now = isCharPersona(cid, avatarId);
             $(e.currentTarget).toggleClass('active', now)
-                .css('color', now ? t.accent : '')
                 .attr('title', now ? '캐릭터 연결 해제' : '현재 캐릭터에 연결')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
             // 페르소나 패널 👤 버튼 동기화
