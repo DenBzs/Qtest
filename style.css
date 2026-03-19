@@ -35,7 +35,7 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     background: #f8f5ff;
     border: 1px solid #d8cef0;
     border-radius: 12px;
-    width: 300px;
+    width: min(92vw, 480px);
     box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.08);
     display: flex;
     flex-direction: column;
@@ -101,16 +101,22 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     background: rgba(120,100,180,0.14);
 }
 
-/* 현재 활성 뷰 버튼 — color는 applyQplTheme에서 accent 적용 */
+/* 현재 활성 뷰 버튼 — color/bg/border는 --qpl-accent CSS 변수로 처리 */
 .qpl-view-btn.active {
     opacity: 1;
-    background: rgba(120,100,180,0.18);
-    border-color: rgba(120,100,180,0.5);
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
+    color: var(--qpl-accent, #8868c0);
 }
 
-/* 👤 버튼: 연결 없음=투명, 있음=JS(applyQplTheme)에서 accent 적용 */
+/* 👤 버튼: 연결 없음=투명, 있음=CSS var accent */
 .qpl-char-btn          { background: transparent; }
-.qpl-char-btn.has-data { opacity: 1; }
+.qpl-char-btn.has-data {
+    opacity: 1;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
+    color: var(--qpl-accent, #8868c0);
+}
 
 /* ── 테마 선택 바 ── */
 
@@ -145,8 +151,7 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 
 .qpl-list {
     overflow-y: auto;
-    max-height: 65vh;
-    max-height: 65svh;
+    max-height: calc(6 * 54px);
     padding: 4px 0;
     position: relative;
 }
@@ -274,20 +279,19 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-tag {
     flex-shrink: 1;
     min-width: 0;
-    font-size: 0.7em;
-    font-weight: 400;
+    font-size: 0.62em;
+    font-weight: 500;
+    background: var(--qpl-accent, rgba(136,104,192,0.12));
     border: none;
-    border-radius: 0;
-    background: none !important;
-    padding: 0;
+    border-radius: 20px;
+    padding: 0px 7px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.4;
-    opacity: 0.5;
-    color: inherit !important;
+    line-height: 1.65;
+    color: var(--qpl-accent, #8868c0);
+    opacity: 0.85;
 }
-.qpl-tag::before { content: '/ '; }
 
 /* ── 행 액션 버튼 그룹 (⭐ 👤 📌) ── */
 
