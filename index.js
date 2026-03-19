@@ -87,7 +87,7 @@ function applyQplTheme(key) {
 let popper = null;
 let isOpen = false;
 let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
-let currentView = 'fav'; // 'fav' | 'char'
+let currentView = 'all'; // 'all' | 'fav' | 'char'
 let _allAvatars  = [];    // openMenu에서 캐시, 뷰 전환 시 재사용
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -326,7 +326,7 @@ async function openMenu() {
     if (_isOpening) return;
     _isOpening = true;
     isOpen = true;
-    currentView = 'fav';
+    currentView = 'all';
 
     $('#qplMenu').stop(true, true).remove();
     if (popper) { popper.destroy(); popper = null; }
@@ -343,7 +343,10 @@ async function openMenu() {
                 <div class="qpl-header">
                     <span class="qpl-header-title">🎭 페르소나Q</span>
                     <div class="qpl-header-actions">
-                        <button class="qpl-view-btn qpl-fav-btn active" title="즐겨찾기 목록">
+                        <button class="qpl-view-btn qpl-all-btn active" title="전체 목록">
+                            <i class="fa-solid fa-masks-theater"></i>
+                        </button>
+                        <button class="qpl-view-btn qpl-fav-btn" title="즐겨찾기 목록">
                             <i class="fa-solid fa-star"></i>
                         </button>
                         <button class="qpl-view-btn qpl-char-btn${charPs.length ? ' has-data' : ''}" title="캐릭터 전용 페르소나">
@@ -355,13 +358,11 @@ async function openMenu() {
                 </div>
                 <div class="qpl-theme-bar" style="display:none;"></div>
                 <div class="qpl-list"></div>
-                ${!hasFavs ? '<div class="qpl-hint"><i class="fa-regular fa-star"></i> 페르소나 패널에서 ⭐를 눌러 즐겨찾기를 추가하세요.</div>' : ''}
             </div>
         `);
 
-        // 초기 즐겨찾기 뷰 렌더
-        const listIds = hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars;
-        renderList($menu.find('.qpl-list'), listIds, false);
+        // 초기 전체 뷰 렌더
+        renderList($menu.find('.qpl-list'), _allAvatars, false);
 
         // 테마 바 구성
         const $bar = $menu.find('.qpl-theme-bar');
@@ -377,6 +378,18 @@ async function openMenu() {
         $menu.find('.qpl-theme-toggle-btn').on('click', e => {
             e.stopPropagation();
             $menu.find('.qpl-theme-bar').toggle();
+            requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
+
+        // 🎭 전체 목록 버튼
+        $menu.find('.qpl-all-btn').on('click', e => {
+            e.stopPropagation();
+            if (currentView === 'all') return;
+            currentView = 'all';
+            $menu.find('.qpl-view-btn').removeClass('active');
+            $menu.find('.qpl-all-btn').addClass('active');
+            $menu.find('.qpl-hint').hide();
+            renderList($menu.find('.qpl-list'), _allAvatars, false);
             requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
@@ -515,6 +528,9 @@ function exitEditMode(allAvatars) {
     $header.html(`
         <span class="qpl-header-title">🎭 페르소나Q</span>
         <div class="qpl-header-actions">
+            <button class="qpl-view-btn qpl-all-btn${currentView === 'all' ? ' active' : ''}" title="전체 목록">
+                <i class="fa-solid fa-masks-theater"></i>
+            </button>
             <button class="qpl-view-btn qpl-fav-btn${currentView === 'fav' ? ' active' : ''}" title="즐겨찾기 목록">
                 <i class="fa-solid fa-star"></i>
             </button>
@@ -529,6 +545,16 @@ function exitEditMode(allAvatars) {
     $header.find('.qpl-theme-toggle-btn').on('click', e => {
         e.stopPropagation();
         $menu.find('.qpl-theme-bar').toggle();
+        requestAnimationFrame(() => { if (popper) popper.update(); });
+    });
+    $header.find('.qpl-all-btn').on('click', e => {
+        e.stopPropagation();
+        if (currentView === 'all') return;
+        currentView = 'all';
+        $menu.find('.qpl-view-btn').removeClass('active');
+        $header.find('.qpl-all-btn').addClass('active');
+        $menu.find('.qpl-hint').hide();
+        renderList($menu.find('.qpl-list'), _allAvatars, false);
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-fav-btn').on('click', e => {
@@ -560,8 +586,9 @@ function exitEditMode(allAvatars) {
     applyQplTheme(getQplTheme());
 
     const $list = $menu.find('.qpl-list');
-    if (currentView === 'char') renderCharView($list, charId);
-    else renderList($list, listIds, false);
+    if (currentView === 'all')       renderList($list, _allAvatars, false);
+    else if (currentView === 'char') renderCharView($list, charId);
+    else                             renderList($list, listIds, false);
 
     if (popper) popper.update();
 }
