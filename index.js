@@ -8,7 +8,7 @@ import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
 import { Popper } from '../../../../lib.js';
 
-const MODULE_NAME = 'Quick-Persona-List';
+const MODULE_NAME = 'Qtest';
 const supportsPersonaThumbnails = getThumbnailUrl('persona', 'test.png', true).includes('&t=');
 
 // ─── 테마 ──────────────────────────────────────────────────────────────────────
