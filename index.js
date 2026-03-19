@@ -337,7 +337,7 @@ async function openMenu() {
                             <i class="fa-solid fa-user"></i>
                         </button>
                         <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
-                        ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+                        ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
                     </div>
                 </div>
                 <div class="qpl-theme-bar" style="display:none;"></div>
@@ -502,7 +502,7 @@ function exitEditMode(allAvatars) {
                 <i class="fa-solid fa-user"></i>
             </button>
             <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
-            ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-pen-to-square"></i></button>` : ''}
+            ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
         </div>
     `);
 
@@ -793,11 +793,8 @@ function setupPanelObserver() {
         // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
-    // [fix-2] body 전체 대신 페르소나 패널만 감시 — 채팅 렌더링에 반응하지 않도록
-    const target = document.getElementById('persona_management_panel')
-                ?? document.getElementById('rm_characters_block')
-                ?? document.body; // 패널 못 찾을 때만 fallback
-    _observer.observe(target, { childList: true, subtree: true });
+    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
+    _observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────────
@@ -830,8 +827,13 @@ jQuery(async () => {
         });
 
         eventSource.on(event_types.SETTINGS_UPDATED, updateButtonState);
-        eventSource.on(event_types.APP_READY, () => { addQuickPersonaButton(); updateButtonState(); });
+        eventSource.on(event_types.APP_READY, () => {
+            addQuickPersonaButton();
+            updateButtonState();
+            setTimeout(injectFavoriteStars, 800);
+        });
         addQuickPersonaButton();
+        setTimeout(injectFavoriteStars, 1200); // 초기 주입
         $(document.body).on('click.qpl', e => {
             if (isOpen && !e.target.closest('#qplMenu') && !e.target.closest('#qplBtn')) closeMenu();
         });
