@@ -405,7 +405,14 @@ async function openMenu() {
         popper = Popper.createPopper(
             document.getElementById('qplBtn'),
             document.getElementById('qplMenu'),
-            { placement: 'top-start', modifiers: [{ name: 'offset', options: { offset: [0, 6] } }] },
+            {
+                placement: 'top',
+                modifiers: [
+                    { name: 'offset', options: { offset: [0, 6] } },
+                    { name: 'preventOverflow', options: { padding: 8 } },
+                    { name: 'flip', options: { fallbackPlacements: ['top-start', 'top-end'] } },
+                ],
+            },
         );
         await popper.update();
 
@@ -442,7 +449,7 @@ function renderCharView($list, charId) {
             <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
                 <i class="fa-solid fa-user" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
                 이 캐릭터에 연결된 페르소나가 없어요.<br>
-                <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 🎭를 눌러 연결하세요.</span>
+                <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 👤를 눌러 연결하세요.</span>
             </div>
         `);
         return;
@@ -678,7 +685,7 @@ function createRow(avatarId, editMode = false, charView = false) {
                 <span class="qpl-name">${safeName}</span>
                 ${safeTitle ? `<span class="qpl-tag">${safeTitle}</span>` : ''}
             </div>
-            ${!editMode && !charView ? `
+            ${!editMode ? `
             <button class="qpl-pin-btn${locked ? ' active' : ''}"
                     title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
                 <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
@@ -692,12 +699,10 @@ function createRow(avatarId, editMode = false, charView = false) {
             await setUserAvatar(avatarId);
             updateButtonState();
         });
-        if (!charView) {
-            $row.find('.qpl-pin-btn').on('click', async e => {
-                e.stopPropagation();
-                await toggleChatLock(avatarId);
-            });
-        }
+        $row.find('.qpl-pin-btn').on('click', async e => {
+            e.stopPropagation();
+            await toggleChatLock(avatarId);
+        });
     }
 
     return $row;
