@@ -312,12 +312,12 @@ async function toggleMenu() {
 async function openMenu() {
     if (_isOpening) return;
     _isOpening = true;
-    isOpen = true;
-    currentView = 'all';
 
     $('#qplMenu').stop(true, true).remove();
 
     try {
+        isOpen = true;
+        currentView = 'all';
         _allAvatars = await getUserAvatars(false);
         const s       = getSettings();
         const hasFavs = s.favorites.length > 0;
@@ -392,6 +392,9 @@ async function openMenu() {
         $(document.body).append($menu);
         $menu.css('display', 'none').fadeIn(animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
+    } catch (err) {
+        isOpen = false;
+        console.error(`[${MODULE_NAME}] openMenu 오류:`, err);
     } finally {
         _isOpening = false;
     }
