@@ -54,13 +54,26 @@ function applyQplTheme(key) {
     menu.querySelectorAll('.qpl-view-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
-    menu.querySelectorAll('.qpl-view-btn.has-data').forEach(btn => {
+    // 👤 버튼: 연결 없음=흰색 아이콘, 있음=accent 색+배경
+    const charBtn = menu.querySelector('.qpl-char-btn');
+    if (charBtn) {
+        if (charBtn.classList.contains('has-data')) {
+            charBtn.style.color = t.accent;
+            charBtn.style.background = `${t.accent}22`;
+            charBtn.style.borderColor = `${t.accent}88`;
+        } else {
+            charBtn.style.color = '';
+            charBtn.style.background = 'transparent';
+            charBtn.style.borderColor = '';
+        }
+    }
+    // 핀 버튼 active 색을 accent으로
+    menu.querySelectorAll('.qpl-pin-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
     // hint border
     const hint = menu.querySelector('.qpl-hint');
     if (hint) hint.style.borderTopColor = t.border;
-    // scrollbar thumb via CSS var workaround: set data attr and use CSS
     menu.dataset.theme = key;
     // theme bar buttons
     menu.querySelectorAll('.qpl-theme-btn').forEach(btn => {
@@ -695,12 +708,22 @@ function createRow(avatarId, editMode = false, charView = false) {
 
     if (!editMode) {
         $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
+            // 잔상 방지: 클릭 즉시 active 클래스 교체
+            $('#qplMenu .qpl-row').removeClass('qpl-active');
+            $row.addClass('qpl-active');
             closeMenu();
             await setUserAvatar(avatarId);
             updateButtonState();
         });
         $row.find('.qpl-pin-btn').on('click', async e => {
             e.stopPropagation();
+            // 즉시 시각 피드백 — async 완료 전에 색 변경
+            const $btn = $(e.currentTarget);
+            const willLock = !$btn.hasClass('active');
+            const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
+            $btn.toggleClass('active', willLock)
+                .css('color', willLock ? t.accent : '')
+                .find('i').attr('class', `fa-${willLock ? 'solid' : 'regular'} fa-thumbtack`);
             await toggleChatLock(avatarId);
         });
     }
