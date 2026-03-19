@@ -305,7 +305,7 @@ function showPersonaSelectPopup(charId, personaIds) {
     });
 }
 
-
+async function toggleMenu() {
     if (isOpen) closeMenu(); else await openMenu();
 }
 
