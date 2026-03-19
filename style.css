@@ -40,8 +40,8 @@ body.square-avatars #qplBtnImg {
     border: 1px solid #d8cef0;
     border-radius: 12px;
     width: 300px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.08);
-    display: flex !important;   /* jQuery fadeIn이 block으로 덮어써도 flex 유지 */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
     flex-direction: column;
     overflow: hidden;
     color: #2c2448;
@@ -56,76 +56,35 @@ body.square-avatars #qplBtnImg {
     justify-content: space-between;
     padding: 8px 12px 6px;
     border-bottom: 1px solid #d8cef0;
-    background: #ede8f8;           /* sub 컬러 — JS applyQplTheme에서 덮어씀 */
     flex-shrink: 0;
-    transition: background 0.15s, border-color 0.15s;
+    transition: border-color 0.15s;
 }
 
 .qpl-header-title {
-    font-size: 0.82em;
+    font-size: 0.78em;
     font-weight: 700;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: inherit;
-    opacity: 0.65;
+    opacity: 0.6;
     user-select: none;
-    white-space: nowrap;
 }
 
-/* 헤더 우측 버튼 그룹 */
-.qpl-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    flex-shrink: 0;
-}
+.qpl-header-title i { margin-right: 6px; }
 
 /* 테마 토글 버튼 */
 .qpl-theme-toggle-btn {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 15px;
-    width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 6px;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 5px;
     opacity: 0.5;
-    transition: opacity 0.15s, background 0.15s;
+    transition: opacity 0.15s;
     line-height: 1;
-    flex-shrink: 0;
 }
-.qpl-theme-toggle-btn:hover { opacity: 1; background: rgba(120,100,180,0.10); }
-
-/* ⭐ / 👤 뷰 전환 버튼 공통 */
-.qpl-view-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    border-radius: 6px;
-    color: inherit;
-    opacity: 0.38;
-    font-size: 13px;
-    width: 28px; height: 28px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: opacity 0.15s, background 0.15s, color 0.15s;
-}
-.qpl-view-btn:hover  { opacity: 0.75; background: rgba(120,100,180,0.10); }
-/* active: 현재 선택된 뷰 */
-.qpl-view-btn.active { opacity: 1; /* color는 applyQplTheme에서 accent로 덮어씀 */ }
-/* has-data: 👤 버튼에 연결 데이터가 있을 때 빛남 */
-.qpl-char-btn.has-data {
-    opacity: 1;
-    /* color는 applyQplTheme에서 accent로 덮어씀 */
-    animation: qpl-pulse 2s ease-in-out infinite;
-}
-@keyframes qpl-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.6; }
-}
-
-
+.qpl-theme-toggle-btn:hover { opacity: 1; }
 
 /* 테마 선택 바 */
 .qpl-theme-bar {
@@ -137,23 +96,24 @@ body.square-avatars #qplBtnImg {
     flex-shrink: 0;
 }
 
-/* 순서 편집 버튼 (아이콘만) */
+/* 순서 편집 버튼 */
 .qpl-edit-btn {
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
+    gap: 4px;
+    background: rgba(120,100,180,0.08);
+    border: 1px solid rgba(120,100,180,0.25);
     border-radius: 6px;
     color: inherit;
-    opacity: 0.45;
-    font-size: 13px;
-    width: 28px; height: 28px;
-    flex-shrink: 0;
+    opacity: 0.7;
+    font-size: 0.72em;
+    font-weight: 600;
+    padding: 3px 8px;
     cursor: pointer;
-    transition: opacity 0.15s, background 0.15s;
+    white-space: nowrap;
+    transition: background 0.15s, opacity 0.15s;
 }
-.qpl-edit-btn:hover { opacity: 1; background: rgba(120,100,180,0.12); }
+.qpl-edit-btn:hover { background: rgba(120,100,180,0.16); opacity: 1; }
 
 /* 편집 완료 버튼 */
 .qpl-done-btn {
@@ -323,49 +283,26 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     opacity: 0.7;
 }
 
-/* ── 행 액션 버튼 그룹 ────────────────────────── */
+/* ── 핀 버튼 ─────────────────────────────────── */
 
-.qpl-row-actions {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.qpl-row:hover .qpl-row-actions,
-.qpl-row-fav-btn.active ~ .qpl-row-actions,
-.qpl-pin-btn.active { opacity: 1; }
-
-/* active 버튼이 있으면 그룹 전체 표시 */
-.qpl-row:has(.qpl-row-fav-btn.active) .qpl-row-actions,
-.qpl-row:has(.qpl-row-char-btn.active) .qpl-row-actions,
-.qpl-row:has(.qpl-pin-btn.active) .qpl-row-actions { opacity: 1; }
-
-.qpl-row-fav-btn,
-.qpl-row-char-btn,
 .qpl-pin-btn {
     flex-shrink: 0;
     background: none;
     border: none;
     color: inherit;
     cursor: pointer;
-    padding: 4px 5px;
+    padding: 4px 6px;
     border-radius: 5px;
-    font-size: 0.8em;
+    font-size: 0.85em;
     line-height: 1;
-    opacity: 0.35;
+    opacity: 0;
     transition: color 0.15s, background 0.15s, opacity 0.15s;
 }
 
-.qpl-row-fav-btn:hover,
-.qpl-row-char-btn:hover,
-.qpl-pin-btn:hover  { opacity: 1; background: rgba(120,100,180,0.10); }
-
-.qpl-row-fav-btn.active  { opacity: 1 !important; color: #e0a800; }
-.qpl-row-char-btn.active { opacity: 1 !important; color: #7a70c0; }
-.qpl-pin-btn.active      { opacity: 1 !important; color: #4a90d9; }
+.qpl-row:hover .qpl-pin-btn,
+.qpl-pin-btn.active          { opacity: 1; }
+.qpl-pin-btn:hover           { background: rgba(120,100,180,0.12); }
+.qpl-pin-btn.active          { color: #4a90d9; }
 
 /* ── 즐겨찾기 별 (페르소나 패널) ─────────────── */
 
@@ -387,160 +324,6 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     line-height: 1;
 }
 
-.qpl-fav-star.active                                  { opacity: 1 !important; color: #e0a800 !important; }
+.qpl-fav-star.active                                  { opacity: 1; color: #e0a800; }
 .avatar-container[data-avatar-id]:hover .qpl-fav-star { opacity: 0.6; }
-.qpl-fav-star:hover                                   { opacity: 1 !important; color: #e0a800 !important; }
-
-/* ── 캐릭터 연결 버튼 👤 (페르소나 패널) ─────────── */
-
-.qpl-char-link-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: none;
-    border: none;
-    border-radius: 50%;
-    width: 20px; height: 20px;
-    font-size: 0.78em;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s, color 0.15s;
-    color: #bbb;
-    padding: 0;
-    line-height: 1;
-}
-
-.qpl-char-link-btn.active                                  { opacity: 1 !important; color: #7a70c0 !important; }
-.avatar-container[data-avatar-id]:hover .qpl-char-link-btn { opacity: 0.5; }
-.qpl-char-link-btn:hover                                   { opacity: 1 !important; color: #7a70c0 !important; }
-
-/* ── 페르소나 선택 팝업 (CHAT_CHANGED) ─────────── */
-
-#qplSelectPopup {
-    position: fixed;
-    inset: 0;
-    z-index: 40000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0,0,0,0.35);
-    backdrop-filter: blur(2px);
-}
-
-.qpl-sp-box {
-    background: #f8f5ff;
-    border: 1px solid #d8cef0;
-    border-radius: 16px;
-    padding: 20px 20px 16px;
-    width: min(320px, 90vw);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.qpl-sp-title {
-    font-size: 1em;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: #8868c0;
-}
-
-.qpl-sp-desc {
-    font-size: 0.8em;
-    text-align: center;
-    opacity: 0.65;
-    line-height: 1.5;
-}
-
-.qpl-sp-avatars {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    margin: 4px 0;
-    max-height: 50vh;
-    overflow-y: auto;
-}
-
-.qpl-sp-avatar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: 2px solid transparent;
-    border-radius: 10px;
-    padding: 6px;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-    max-width: 72px;
-}
-.qpl-sp-avatar:hover {
-    background: rgba(120,100,180,0.1);
-    border-color: rgba(120,100,180,0.35);
-}
-.qpl-sp-avatar img {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    object-fit: cover;
-    object-position: center;
-    border: 1px solid rgba(128,128,128,0.2);
-}
-.qpl-sp-avatar span {
-    font-size: 0.68em;
-    font-weight: 600;
-    text-align: center;
-    word-break: break-all;
-    line-height: 1.2;
-    max-width: 64px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.qpl-sp-footer {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    width: 100%;
-    justify-content: center;
-}
-
-.qpl-sp-remove {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: 1px solid rgba(180,80,80,0.35);
-    border-radius: 8px;
-    color: #c05858;
-    font-size: 0.75em;
-    font-weight: 600;
-    padding: 5px 12px;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.qpl-sp-remove:hover { background: rgba(180,80,80,0.1); }
-
-.qpl-sp-none {
-    background: none;
-    border: 1px solid rgba(128,128,128,0.25);
-    border-radius: 8px;
-    font-size: 0.75em;
-    font-weight: 600;
-    padding: 5px 14px;
-    cursor: pointer;
-    color: inherit;
-    opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s;
-}
-.qpl-sp-none:hover { opacity: 1; background: rgba(120,100,180,0.08); }
-
+.qpl-fav-star:hover                                   { opacity: 1 !important; color: #e0a800; }
