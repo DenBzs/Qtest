@@ -96,6 +96,34 @@ body.square-avatars #qplBtnImg {
     flex-shrink: 0;
 }
 
+/* ── 헤더 뷰 전환 버튼 (⭐ 👤 🤍 순서편집) ──── */
+
+.qpl-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.qpl-view-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(120,100,180,0.08);
+    border: 1px solid rgba(120,100,180,0.22);
+    border-radius: 8px;
+    color: inherit;
+    opacity: 0.55;
+    font-size: 0.82em;
+    width: 30px; height: 26px;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.qpl-view-btn:hover  { opacity: 0.9; background: rgba(120,100,180,0.14); }
+.qpl-view-btn.active { opacity: 1; background: rgba(120,100,180,0.16); border-color: rgba(120,100,180,0.45); }
+.qpl-char-btn.has-data { opacity: 1; border-color: rgba(120,100,180,0.5); }
+
 /* 순서 편집 버튼 */
 .qpl-edit-btn {
     display: flex;
@@ -324,6 +352,30 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     line-height: 1;
 }
 
-.qpl-fav-star.active                                  { opacity: 1; color: #e0a800; }
+.qpl-fav-star.active                                  { opacity: 1 !important; color: #e0a800 !important; }
 .avatar-container[data-avatar-id]:hover .qpl-fav-star { opacity: 0.6; }
-.qpl-fav-star:hover                                   { opacity: 1 !important; color: #e0a800; }
+.qpl-fav-star:hover                                   { opacity: 1 !important; color: #e0a800 !important; }
+
+/* ── 캐릭터 연결 버튼 👤 (페르소나 패널) ─────── */
+
+.qpl-char-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 0.78em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    color: #bbb;
+    padding: 0;
+    line-height: 1;
+}
+
+.qpl-char-link-btn.active                                  { opacity: 1 !important; color: #8868c0 !important; }
+.avatar-container[data-avatar-id]:hover .qpl-char-link-btn { opacity: 0.6; }
+.qpl-char-link-btn:hover                                   { opacity: 1 !important; color: #8868c0 !important; }
