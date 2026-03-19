@@ -312,12 +312,11 @@ async function toggleMenu() {
 async function openMenu() {
     if (_isOpening) return;
     _isOpening = true;
-
+    isOpen = true;          // await 전에 설정 → race condition 방지
+    currentView = 'all';
     $('#qplMenu').stop(true, true).remove();
 
     try {
-        isOpen = true;
-        currentView = 'all';
         _allAvatars = await getUserAvatars(false);
         const s       = getSettings();
         const hasFavs = s.favorites.length > 0;
@@ -390,11 +389,13 @@ async function openMenu() {
         });
 
         $(document.body).append($menu);
-        $menu.css('display', 'none').fadeIn(animation_duration);
+        // opacity 애니메이션 — jQuery fadeIn은 display:flex를 block으로 덮어쓰는 문제가 있어 사용 안 함
+        $menu.css('opacity', 0).animate({ opacity: 1 }, animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
     } catch (err) {
         isOpen = false;
         console.error(`[${MODULE_NAME}] openMenu 오류:`, err);
+        toastr.error(`페르소나 목록 오류: ${err?.message || err}`);
     } finally {
         _isOpening = false;
     }
@@ -407,7 +408,7 @@ function closeMenu() {
     // 드래그 중 메뉴가 닫히면 body에 남은 ghost 정리
     $(document.body).children('.qpl-dragging').remove();
 
-    $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
+    $('#qplMenu').stop(true).animate({ opacity: 0 }, animation_duration, () => $('#qplMenu').remove());
 }
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
