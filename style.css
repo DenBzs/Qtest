@@ -108,8 +108,8 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     border-color: rgba(120,100,180,0.5);
 }
 
-/* 👤 버튼: 연결 없음=비어있는 테두리, 있음=JS(applyQplTheme)에서 accent 적용 */
-.qpl-char-btn          { background: transparent !important; }
+/* 👤 버튼: 연결 없음=투명, 있음=JS(applyQplTheme)에서 accent 적용 */
+.qpl-char-btn          { background: transparent; }
 .qpl-char-btn.has-data { opacity: 1; }
 
 /* ── 테마 선택 바 ── */
@@ -308,7 +308,6 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-row:hover .qpl-pin-btn,
 .qpl-pin-btn.active { opacity: 1; }
 .qpl-pin-btn:hover  { background: rgba(120,100,180,0.12); }
-/* color는 applyQplTheme에서 accent로 JS 적용 */
 
 /* ── 즐겨찾기 별 (페르소나 패널) ── */
 
