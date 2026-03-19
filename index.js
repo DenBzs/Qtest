@@ -260,63 +260,6 @@ function updateButtonState() {
     }, 100);
 }
 
-// ─── 메뉴 ─────────────────────────────────────────────────────────────────────
-// ─── 페르소나 선택 팝업 (CHAT_CHANGED 자동) ────────────────────────────────────
-function showPersonaSelectPopup(charId, personaIds) {
-    $('#qplSelectPopup').remove();
-    const { DOMPurify } = SillyTavern.libs;
-
-    const avatarsHtml = personaIds.map(id => {
-        const name   = DOMPurify.sanitize(power_user.personas?.[id] || id);
-        const imgUrl = getImageUrl(id);
-        return `<button class="qpl-sp-avatar" data-persona="${DOMPurify.sanitize(id)}" title="${name}">
-            <img src="${imgUrl}" alt="${name}" />
-            <span>${name}</span>
-        </button>`;
-    }).join('');
-
-    const $popup = $(`
-        <div id="qplSelectPopup">
-            <div class="qpl-sp-box">
-                <div class="qpl-sp-title"><i class="fa-solid fa-user"></i> 페르소나 선택</div>
-                <div class="qpl-sp-desc">이 캐릭터에 연결된 페르소나가 여러 명 있어요.<br>이 채팅에서 사용할 페르소나를 골라주세요.</div>
-                <div class="qpl-sp-avatars">${avatarsHtml}</div>
-                <div class="qpl-sp-footer">
-                    <button class="qpl-sp-remove"><i class="fa-solid fa-link-slash"></i> 연결 전체 해제</button>
-                    <button class="qpl-sp-none">없음</button>
-                </div>
-            </div>
-        </div>
-    `);
-
-    $popup.find('.qpl-sp-avatar').on('click', async function () {
-        const pid = $(this).data('persona');
-        await setUserAvatar(pid);
-        updateButtonState();
-        $popup.fadeOut(150, () => $popup.remove());
-    });
-
-    $popup.find('.qpl-sp-remove').on('click', () => {
-        const s = getSettings();
-        delete s.charPersonas[charId];
-        saveSettings();
-        $popup.fadeOut(150, () => $popup.remove());
-    });
-
-    $popup.find('.qpl-sp-none').on('click', () => {
-        $popup.fadeOut(150, () => $popup.remove());
-    });
-
-    $(document.body).append($popup);
-    // 테마 accent 컬러 적용
-    requestAnimationFrame(() => {
-        const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
-        $popup.find('.qpl-sp-box').css({ borderColor: t.border, background: t.bg, color: t.text });
-        $popup.find('.qpl-sp-title').css({ color: t.accent });
-        $popup.find('.qpl-sp-none').css({ borderColor: t.border });
-    });
-}
-
 async function toggleMenu() {
     if (isOpen) closeMenu(); else await openMenu();
 }
@@ -990,55 +933,14 @@ function resumeObserver() { _observerPaused = false; }
 
 function setupPanelObserver() {
     let timer = null;
-    _observer = new MutationObserver((mutations) => {
-        // ST 기본 페르소나 선택 팝업 억제 — QPL charPersonas가 있는 캐릭터일 때만
-        for (const m of mutations) {
-            for (const node of m.addedNodes) {
-                if (node.nodeType !== 1) continue;
-                // ST의 선택 팝업은 .popup 또는 #persona-selector 류의 모달
-                const isSTPersonaPopup =
-                    (node.id && /persona.*(select|modal|dialog)/i.test(node.id)) ||
-                    (node.className && typeof node.className === 'string' &&
-                     /persona.*(select|modal|dialog)/i.test(node.className)) ||
-                    node.querySelector?.('[class*="persona"][class*="select"], [id*="persona"][id*="select"]');
-                if (isSTPersonaPopup) {
-                    const charId = getCurrentCharId();
-                    if (charId && getCharPersonas(charId).length > 0) {
-                        node.remove();
-                    }
-                }
-            }
-        }
-
+    _observer = new MutationObserver(() => {
         if (_observerPaused) return;
         clearTimeout(timer);
+        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
-    const target = document.getElementById('persona_management_panel')
-                ?? document.getElementById('rm_characters_block')
-                ?? document.body;
-    _observer.observe(target, { childList: true, subtree: true });
-    // ST 팝업 억제는 body 직접 감시 필요
-    if (target !== document.body) {
-        new MutationObserver((mutations) => {
-            for (const m of mutations) {
-                for (const node of m.addedNodes) {
-                    if (node.nodeType !== 1) continue;
-                    const isSTPersonaPopup =
-                        (node.id && /persona.*(select|modal|dialog)/i.test(node.id)) ||
-                        (node.className && typeof node.className === 'string' &&
-                         /persona.*(select|modal|dialog)/i.test(node.className)) ||
-                        node.querySelector?.('[class*="persona"][class*="select"], [id*="persona"][id*="select"]');
-                    if (isSTPersonaPopup) {
-                        const charId = getCurrentCharId();
-                        if (charId && getCharPersonas(charId).length > 0) {
-                            node.remove();
-                        }
-                    }
-                }
-            }
-        }).observe(document.body, { childList: true });
-    }
+    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
+    _observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────────
@@ -1050,19 +952,12 @@ jQuery(async () => {
         // 캐릭터 전환 시: 연결된 페르소나가 여러 개이고 채팅 고정 없으면 선택 팝업
         eventSource.on(event_types.CHAT_CHANGED, () => {
             updateButtonState();
-            // 페르소나 패널의 👤 버튼 상태를 새 캐릭터 기준으로 갱신
             setTimeout(injectFavoriteStars, 200);
-            // 기존 팝업 제거
-            $('#qplSelectPopup').remove();
             try {
                 const charId  = getCurrentCharId();
                 const charPs  = getCharPersonas(charId);
                 const locked  = getLockedPersona();
-                if (charPs.length >= 2 && !locked) {
-                    // 약간 딜레이 후 표시 (채팅 UI 렌더링 완료 후)
-                    setTimeout(() => showPersonaSelectPopup(charId, charPs), 300);
-                } else if (charPs.length === 1 && !locked) {
-                    // 1명이면 자동 적용
+                if (charPs.length === 1 && !locked) {
                     setUserAvatar(charPs[0]).then(() => updateButtonState());
                 }
             } catch (err) {
