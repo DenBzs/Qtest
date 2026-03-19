@@ -44,37 +44,15 @@ function applyQplTheme(key) {
     menu.style.background = t.bg;
     menu.style.borderColor = t.border;
     menu.style.color = t.text;
-    // header border + background (한 톤 낮은 sub 컬러)
+    // CSS 변수로 accent 설정 → .qpl-view-btn.active, .qpl-tag, .qpl-char-btn.has-data 등이 자동 적용
+    menu.style.setProperty('--qpl-accent', t.accent);
+    // header border + background
     const header = menu.querySelector('.qpl-header');
     if (header) {
         header.style.borderBottomColor = t.border;
         header.style.backgroundColor   = t.sub;
     }
-    // view 버튼 active accent 색 + 배경 반영
-    menu.querySelectorAll('.qpl-view-btn.active').forEach(btn => {
-        btn.style.color       = t.accent;
-        btn.style.background  = t.accent + '28';
-        btn.style.borderColor = t.accent + '99';
-    });
-    menu.querySelectorAll('.qpl-view-btn:not(.active)').forEach(btn => {
-        btn.style.color       = '';
-        btn.style.background  = '';
-        btn.style.borderColor = '';
-    });
-    // 👤 버튼: 연결 있으면 accent 색 적용
-    const charBtn = menu.querySelector('.qpl-char-btn');
-    if (charBtn) {
-        if (charBtn.classList.contains('has-data')) {
-            charBtn.style.color = t.accent;
-            charBtn.style.borderColor = t.accent + '99';
-            charBtn.style.background = t.accent + '28';
-        } else {
-            charBtn.style.color = '';
-            charBtn.style.borderColor = '';
-            charBtn.style.background = 'transparent';
-        }
-    }
-    // 핀 버튼 active → accent 색
+    // 핀 버튼 active → accent 색 (CSS var 미지원 구형 방어)
     menu.querySelectorAll('.qpl-pin-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
@@ -82,7 +60,7 @@ function applyQplTheme(key) {
     const hint = menu.querySelector('.qpl-hint');
     if (hint) hint.style.borderTopColor = t.border;
     menu.dataset.theme = key;
-    // done-btn에 accent 색 적용
+    // done-btn
     const doneBtn = menu.querySelector('.qpl-done-btn');
     if (doneBtn) {
         doneBtn.style.background    = t.accent + '22';
