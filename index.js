@@ -228,7 +228,7 @@ function refreshCharViewBtn() {
 
 function getImageUrl(avatarId) {
     if (supportsPersonaThumbnails) return getThumbnailUrl('persona', avatarId, true);
-    return `${getUserAvatar(avatarId)}?t=${Date.now()}`;
+    return getUserAvatar(avatarId);
 }
 
 // ─── 하단 버튼 ─────────────────────────────────────────────────────────────────
@@ -481,6 +481,9 @@ function closeMenu() {
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
 function renderList($list, listIds, editMode) {
+    // hint 제거 (탭 전환 시 잔상 방지)
+    $list.find('.qpl-hint').remove();
+
     if (editMode) {
         // 편집 모드는 드래그 핸들 필요 — 전체 재생성
         $list.empty();
