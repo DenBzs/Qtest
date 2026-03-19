@@ -481,45 +481,8 @@ function closeMenu() {
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
 function renderList($list, listIds, editMode) {
-    // hint 제거 (탭 전환 시 잔상 방지)
-    $list.find('.qpl-hint').remove();
-
-    if (editMode) {
-        // 편집 모드는 드래그 핸들 필요 — 전체 재생성
-        $list.empty();
-        listIds.forEach(id => $list.append(createRow(id, true)));
-        return;
-    }
-    // 일반 모드: 기존 행 재사용해서 깜빡임 방지
-    const existing = {};
-    $list.find('.qpl-row[data-avatar]').each(function () {
-        existing[$(this).attr('data-avatar')] = $(this);
-    });
-
-    const newSet = new Set(listIds);
-
-    // 목록에 없는 행 제거
-    Object.keys(existing).forEach(id => {
-        if (!newSet.has(id)) existing[id].remove();
-    });
-
-    // 순서대로 삽입/이동
-    listIds.forEach((id, i) => {
-        const $cur = $list.find('.qpl-row').eq(i);
-        if (existing[id]) {
-            // 이미 있으면 위치만 맞춤
-            if (!$cur.length || $cur.attr('data-avatar') !== id) {
-                existing[id].detach();
-                if ($cur.length) $cur.before(existing[id]);
-                else $list.append(existing[id]);
-            }
-        } else {
-            // 없으면 새로 생성
-            const $newRow = createRow(id, false);
-            if ($cur.length) $cur.before($newRow);
-            else $list.append($newRow);
-        }
-    });
+    $list.empty();
+    listIds.forEach(id => $list.append(createRow(id, editMode)));
 }
 
 // ─── 캐릭터 뷰 렌더 ────────────────────────────────────────────────────────────
