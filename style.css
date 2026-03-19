@@ -101,7 +101,7 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     background: rgba(120,100,180,0.14);
 }
 
-/* 현재 활성 뷰 버튼 */
+/* 현재 활성 뷰 버튼 — color는 applyQplTheme에서 accent 적용 */
 .qpl-view-btn.active {
     opacity: 1;
     background: rgba(120,100,180,0.18);
@@ -274,39 +274,62 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-tag {
     flex-shrink: 1;
     min-width: 0;
-    font-size: 0.68em;
+    font-size: 0.6em;
     font-weight: 500;
     background: rgba(120,100,180,0.10);
     border: 1px solid rgba(120,100,180,0.2);
     border-radius: 8px;
-    padding: 1px 7px;
+    padding: 1px 6px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.7;
     color: inherit;
-    opacity: 0.7;
+    opacity: 0.6;
 }
 
-/* ── 핀 버튼 ── */
+/* ── 행 액션 버튼 그룹 (⭐ 👤 📌) ── */
 
+.qpl-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.qpl-row:hover .qpl-row-actions { opacity: 1; }
+
+/* active 버튼 있으면 그룹 항상 표시 */
+.qpl-row:has(.qpl-row-fav-btn.active) .qpl-row-actions,
+.qpl-row:has(.qpl-row-char-btn.active) .qpl-row-actions,
+.qpl-row:has(.qpl-pin-btn.active) .qpl-row-actions { opacity: 1; }
+
+.qpl-row-fav-btn,
+.qpl-row-char-btn,
 .qpl-pin-btn {
     flex-shrink: 0;
     background: none;
     border: none;
     color: inherit;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 4px 5px;
     border-radius: 5px;
-    font-size: 0.85em;
+    font-size: 0.8em;
     line-height: 1;
-    opacity: 0;
-    transition: background 0.15s, opacity 0.15s;
+    opacity: 0.3;
+    transition: background 0.12s, opacity 0.12s;
 }
 
-.qpl-row:hover .qpl-pin-btn,
-.qpl-pin-btn.active { opacity: 1; }
-.qpl-pin-btn:hover  { background: rgba(120,100,180,0.12); }
+.qpl-row-fav-btn:hover,
+.qpl-row-char-btn:hover,
+.qpl-pin-btn:hover { opacity: 1; background: rgba(120,100,180,0.10); }
+
+/* active 상태 — color는 JS(createRow/refreshPinButtons)에서 accent으로 */
+.qpl-row-fav-btn.active,
+.qpl-row-char-btn.active,
+.qpl-pin-btn.active { opacity: 1 !important; }
 
 /* ── 즐겨찾기 별 (페르소나 패널) ── */
 
