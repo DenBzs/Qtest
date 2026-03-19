@@ -8,8 +8,57 @@ import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
 import { Popper } from '../../../../lib.js';
 
-const MODULE_NAME = 'Quick-Persona-List';
+const MODULE_NAME = 'Qtest';
 const supportsPersonaThumbnails = getThumbnailUrl('persona', 'test.png', true).includes('&t=');
+
+// ─── 테마 ──────────────────────────────────────────────────────────────────────
+const QPL_THEMES = {
+    dark:     { label:'🖤', name:'다크',    bg:'#23233a', border:'#3a3a58', text:'#dcdaf0', sub:'#1a1a2e', accent:'#7a70c0', muted:'#9890c8' },
+    white:    { label:'🤍', name:'화이트',  bg:'#ffffff', border:'#e0e0e0', text:'#222222', sub:'#f2f2f2', accent:'#7878c0', muted:'#aaaacc' },
+    classic:  { label:'🤎', name:'클래식',  bg:'#f5f0e8', border:'#d8d0c4', text:'#2a2520', sub:'#ede7db', accent:'#8a7a60', muted:'#a09080' },
+    pink:     { label:'🩷', name:'핑크',    bg:'#fff7fa', border:'#f0d4e4', text:'#3c1830', sub:'#fdedf4', accent:'#c87890', muted:'#d8a0b8' },
+    green:    { label:'💚', name:'그린',    bg:'#f4fbf6', border:'#c8e8d0', text:'#1a3022', sub:'#e4f5ea', accent:'#4a9060', muted:'#78b890' },
+    sky:      { label:'🩵', name:'스카이',  bg:'#f8feff', border:'#c4e8f8', text:'#143450', sub:'#edf9ff', accent:'#4890c8', muted:'#78b0d8' },
+    lavender: { label:'💜', name:'라벤더',  bg:'#f8f5ff', border:'#d8cef0', text:'#2c2448', sub:'#ede8f8', accent:'#8868c0', muted:'#b098d8' },
+};
+
+function getQplTheme() {
+    try {
+        const s = SillyTavern.getContext().extensionSettings[MODULE_NAME];
+        return QPL_THEMES[s?.theme] ? s.theme : 'lavender';
+    } catch { return 'lavender'; }
+}
+
+function setQplTheme(key) {
+    try {
+        SillyTavern.getContext().extensionSettings[MODULE_NAME].theme = key;
+        saveSettings();
+    } catch {}
+    applyQplTheme(key);
+}
+
+function applyQplTheme(key) {
+    const t = QPL_THEMES[key] || QPL_THEMES.lavender;
+    const menu = document.getElementById('qplMenu');
+    if (!menu) return;
+    menu.style.background = t.bg;
+    menu.style.borderColor = t.border;
+    menu.style.color = t.text;
+    // header border
+    const header = menu.querySelector('.qpl-header');
+    if (header) header.style.borderBottomColor = t.border;
+    // hint border
+    const hint = menu.querySelector('.qpl-hint');
+    if (hint) hint.style.borderTopColor = t.border;
+    // scrollbar thumb via CSS var workaround: set data attr and use CSS
+    menu.dataset.theme = key;
+    // theme bar buttons
+    menu.querySelectorAll('.qpl-theme-btn').forEach(btn => {
+        const active = btn.dataset.theme === key;
+        btn.style.opacity   = active ? '1' : '0.4';
+        btn.style.transform = active ? 'scale(1.2)' : 'scale(1)';
+    });
+}
 
 /** @type {Popper.Instance|null} */
 let popper = null;
@@ -172,16 +221,41 @@ async function openMenu() {
                         <i class="fa-solid fa-user"></i>
                         페르소나${!hasFavs ? ' (전체)' : ''}
                     </span>
-                    ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집">
-                        <i class="fa-solid fa-pen-to-square"></i> 순서 편집
-                    </button>` : ''}
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
+                        ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집">
+                            <i class="fa-solid fa-pen-to-square"></i> 순서 편집
+                        </button>` : ''}
+                    </div>
                 </div>
+                <div class="qpl-theme-bar" style="display:none;"></div>
                 <div class="qpl-list"></div>
                 ${!hasFavs ? '<div class="qpl-hint"><i class="fa-regular fa-star"></i> 페르소나 패널에서 ⭐를 눌러 즐겨찾기를 추가하세요.</div>' : ''}
             </div>
         `);
 
         renderList($menu.find('.qpl-list'), listIds, false);
+
+        // Build theme bar
+        const $bar = $menu.find('.qpl-theme-bar');
+        const curTheme = getQplTheme();
+        Object.entries(QPL_THEMES).forEach(([key, t]) => {
+            const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
+                style="border:none;background:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:6px;transition:transform 0.1s,opacity 0.1s;opacity:${key===curTheme?'1':'0.4'};transform:${key===curTheme?'scale(1.2)':'scale(1)'};">${t.label}</button>`);
+            $btn.on('click', e => {
+                e.stopPropagation();
+                setQplTheme(key);
+                if (popper) popper.update();
+            });
+            $bar.append($btn);
+        });
+
+        $menu.find('.qpl-theme-toggle-btn').on('click', e => {
+            e.stopPropagation();
+            const $b = $menu.find('.qpl-theme-bar');
+            $b.toggle();
+            if (popper) popper.update();
+        });
 
         $menu.find('.qpl-edit-btn').on('click', e => {
             e.stopPropagation();
@@ -201,6 +275,8 @@ async function openMenu() {
         await popper.update();
 
         $menu.css({ visibility: '', display: 'none' }).fadeIn(animation_duration);
+        // Apply saved theme after menu is visible
+        requestAnimationFrame(() => applyQplTheme(getQplTheme()));
     } finally {
         _isOpening = false;
     }
@@ -278,114 +354,108 @@ function exitEditMode(allAvatars) {
     if (popper) popper.update();
 }
 
-// ─── 터치/마우스 드래그 (Pointer Events API) ──────────────────────────────────
-// dragging 행을 body로 꺼내지 않고 list 안에 그대로 유지.
-// 대신 고스트(ghost) 복사본을 body에 fixed로 띄워 시각 피드백을 주고,
-// list 안의 원본은 투명하게 처리해 자리를 유지함.
-// → placeholder 이중생성 버그, 팝업 밖 삐져나옴 버그 동시 해결.
+// ─── 터치/마우스 드래그 (QPM-style: in-container transform) ──────────────────
+// 행이 컨테이너 안에서 translateY로 움직임. 고스트 없음, body 탈출 없음.
+// handle에 setPointerCapture → 모바일 스크롤 충돌 방지.
 function setupTouchDrag($list) {
     const list = $list[0];
 
-    let dragging  = null; // list 안의 원본 행 (투명하게 자리 유지)
-    let ghost     = null; // body에 fixed로 띄운 시각 복사본
-    let offsetY   = 0;
-    let pendingY  = null;
-    let rafId     = null;
-    let pointerId = null;
+    let drag = null; // { el, fromIdx, currentIdx, rows, rowH }
 
-    // list 안의 행 중 y좌표에 해당하는 행 반환 (dragging 자신 제외)
-    function getRowAt(y) {
-        for (const row of list.querySelectorAll('.qpl-row')) {
-            if (row === dragging) continue;
-            const rect = row.getBoundingClientRect();
-            if (y >= rect.top && y <= rect.bottom) return row;
-        }
-        return null;
+    function getRows() {
+        return [...list.querySelectorAll('.qpl-row')];
+    }
+
+    function applyPositions(fromIdx, toIdx, rows, dragEl, rowH) {
+        rows.forEach((r, i) => {
+            if (r === dragEl) return;
+            let shift = 0;
+            if (fromIdx < toIdx) {
+                if (i > fromIdx && i <= toIdx) shift = -rowH;
+            } else {
+                if (i >= toIdx && i < fromIdx) shift = rowH;
+            }
+            r.style.transition = 'transform 0.12s ease';
+            r.style.transform  = shift ? `translateY(${shift}px)` : '';
+        });
+    }
+
+    function resetStyles(rows) {
+        rows.forEach(r => {
+            r.style.transform  = '';
+            r.style.transition = '';
+            r.style.position   = '';
+            r.style.zIndex     = '';
+            r.style.opacity    = '';
+            r.style.boxShadow  = '';
+        });
     }
 
     function onPointerDown(e) {
-        if (dragging) return;
+        if (drag) return;
         const handle = e.target.closest('.qpl-drag-handle');
         if (!handle) return;
         const row = handle.closest('.qpl-row');
         if (!row || !list.contains(row)) return;
 
         e.preventDefault();
-        pointerId = e.pointerId;
-        // setPointerCapture는 list가 아닌 handle에 걸어야
-        // 모바일에서 scroll과 충돌 안 함
+        const rows  = getRows();
+        const idx   = rows.indexOf(row);
+        const rowH  = row.offsetHeight;
+
+        row.style.position  = 'relative';
+        row.style.zIndex    = '10';
+        row.style.opacity   = '0.88';
+        row.style.boxShadow = '0 4px 12px rgba(0,0,0,0.28)';
+        row.style.transition = 'none';
+
+        drag = { el: row, fromIdx: idx, currentIdx: idx, rows, rowH, startY: e.clientY };
         handle.setPointerCapture(e.pointerId);
-
-        const rect = row.getBoundingClientRect();
-        offsetY = e.clientY - rect.top;
-
-        // 원본은 투명하게 자리만 유지
-        dragging = row;
-        dragging.style.opacity = '0.25';
-        dragging.style.pointerEvents = 'none';
-
-        // 시각 복사본을 body에 fixed
-        ghost = row.cloneNode(true);
-        ghost.classList.add('qpl-dragging');
-        ghost.style.position = 'fixed';
-        ghost.style.width    = rect.width  + 'px';
-        ghost.style.left     = rect.left   + 'px';
-        ghost.style.top      = rect.top    + 'px';
-        ghost.style.margin   = '0';
-        ghost.style.zIndex   = '99999';
-        document.body.appendChild(ghost);
-
-        pauseObserver();
     }
 
     function onPointerMove(e) {
-        if (!dragging || e.pointerId !== pointerId) return;
+        if (!drag) return;
         e.preventDefault();
-        pendingY = e.clientY;
+        const { el, fromIdx, currentIdx, rows, rowH, startY } = drag;
+        const dy = e.clientY - startY;
 
-        if (rafId === null) {
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
-                if (!dragging || !ghost) return;
+        const maxUp   = -(fromIdx * rowH);
+        const maxDown = (rows.length - 1 - fromIdx) * rowH;
+        const clamped = Math.max(maxUp, Math.min(maxDown, dy));
+        el.style.transform = `translateY(${clamped}px)`;
 
-                // 고스트만 이동
-                ghost.style.top = (pendingY - offsetY) + 'px';
-
-                // list 안에서 dragging의 위치 재정렬
-                const target = getRowAt(pendingY);
-                if (target) {
-                    const rect   = target.getBoundingClientRect();
-                    const middle = rect.top + rect.height / 2;
-                    if (pendingY < middle) {
-                        list.insertBefore(dragging, target);
-                    } else {
-                        list.insertBefore(dragging, target.nextSibling);
-                    }
-                }
-            });
+        const newIdx = Math.max(0, Math.min(rows.length - 1,
+            fromIdx + Math.round(dy / rowH)));
+        if (newIdx !== currentIdx) {
+            drag.currentIdx = newIdx;
+            applyPositions(fromIdx, newIdx, rows, el, rowH);
         }
     }
 
     function onPointerUp() {
-        if (!dragging) return;
-        if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+        if (!drag) return;
+        const { el, fromIdx, currentIdx, rows } = drag;
+        drag = null;
 
-        // 원본 스타일 복원
-        dragging.style.opacity       = '';
-        dragging.style.pointerEvents = '';
-        dragging = null;
+        resetStyles(rows);
 
-        // 고스트 제거
-        if (ghost) { ghost.remove(); ghost = null; }
-
-        pendingY  = null;
-        pointerId = null;
+        if (currentIdx !== fromIdx) {
+            // Re-order DOM to match new position
+            const parent = el.parentElement;
+            const siblings = [...parent.querySelectorAll('.qpl-row')];
+            // Remove and re-insert at new index
+            parent.removeChild(el);
+            const ref = siblings[currentIdx] ?? null;
+            // Adjust ref since el was removed
+            const adjustedSiblings = [...parent.querySelectorAll('.qpl-row')];
+            const insertBefore = adjustedSiblings[currentIdx] ?? null;
+            parent.insertBefore(el, insertBefore);
+        }
 
         resumeObserver();
         if (popper) popper.update();
     }
 
-    // 이벤트는 list 전체에 걸되, capture는 handle에 넘겼으므로 충돌 없음
     list.addEventListener('pointerdown',   onPointerDown, { passive: false });
     list.addEventListener('pointermove',   onPointerMove, { passive: false });
     list.addEventListener('pointerup',     onPointerUp);
