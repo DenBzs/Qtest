@@ -6,7 +6,8 @@
 import { animation_duration, eventSource, event_types, getThumbnailUrl } from '../../../../script.js';
 import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
-/** @type {null} */
+import { Popper } from '../../../../lib.js';
+
 const MODULE_NAME = 'Qtest';
 const supportsPersonaThumbnails = getThumbnailUrl('persona', 'test.png', true).includes('&t=');
 
@@ -96,6 +97,8 @@ function applyQplTheme(key) {
     });
 }
 
+/** @type {Popper.Instance|null} */
+let popper = null;
 let isOpen = false;
 let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
 let currentView = 'all'; // 'all' | 'fav' | 'char'
@@ -274,6 +277,7 @@ function updateButtonState() {
     }, 100);
 }
 
+// ─── 메뉴 ─────────────────────────────────────────────────────────────────────
 // ─── 페르소나 선택 팝업 (CHAT_CHANGED 자동) ────────────────────────────────────
 function showPersonaSelectPopup(charId, personaIds) {
     $('#qplSelectPopup').remove();
@@ -341,7 +345,7 @@ async function openMenu() {
     currentView = 'all';
 
     $('#qplMenu').stop(true, true).remove();
-    
+    if (popper) { popper.destroy(); popper = null; }
 
     try {
         _allAvatars = await getUserAvatars(false);
@@ -381,7 +385,7 @@ async function openMenu() {
         Object.entries(QPL_THEMES).forEach(([key, t]) => {
             const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
                 style="border:none;background:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:6px;transition:transform 0.1s,opacity 0.1s;opacity:${key===curTheme?'1':'0.4'};transform:${key===curTheme?'scale(1.2)':'scale(1)'};">${t.label}</button>`);
-            $btn.on('click', e => { e.stopPropagation(); setQplTheme(key) });
+            $btn.on('click', e => { e.stopPropagation(); setQplTheme(key); if (popper) popper.update(); });
             $bar.append($btn);
         });
 
@@ -389,7 +393,7 @@ async function openMenu() {
         $menu.find('.qpl-theme-toggle-btn').on('click', e => {
             e.stopPropagation();
             $menu.find('.qpl-theme-bar').toggle();
-            
+            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
         // 🎭 전체 목록 버튼
@@ -399,9 +403,9 @@ async function openMenu() {
             currentView = 'all';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-all-btn').addClass('active');
-            $menu.find('.qpl-edit-btn').hide();
+            $menu.find('.qpl-hint').hide();
             renderList($menu.find('.qpl-list'), _allAvatars, false);
-            applyQplTheme(getQplTheme());
+            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
         // ⭐ 즐겨찾기 뷰 버튼
@@ -411,6 +415,7 @@ async function openMenu() {
             currentView = 'fav';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-fav-btn').addClass('active');
+            // 편집 버튼: 즐겨찾기 있을 때만
             $menu.find('.qpl-edit-btn').toggle(hasFavs);
             if (hasFavs) {
                 renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
@@ -423,7 +428,7 @@ async function openMenu() {
                     </div>
                 `);
             }
-            applyQplTheme(getQplTheme());
+            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
         // 👤 캐릭터 뷰 버튼
@@ -433,10 +438,17 @@ async function openMenu() {
             currentView = 'char';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-char-btn').addClass('active');
+            // 편집 버튼: 캐릭터 페르소나 있을 때만
             const cid = getCurrentCharId();
             $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
             renderCharView($menu.find('.qpl-list'), cid);
-            applyQplTheme(getQplTheme());
+            requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
+
+        // 🎭 전체 뷰로 돌아올 때 편집 버튼 숨김
+        $menu.find('.qpl-all-btn').on('click', e => {
+            // 이미 핸들러 있지만 edit-btn 토글 추가
+            $menu.find('.qpl-edit-btn').hide();
         });
 
         // 순서 편집
@@ -444,10 +456,27 @@ async function openMenu() {
             e.stopPropagation();
             enterEditMode(_allAvatars);
         });
+        // 전체 탭이 기본이므로 편집 버튼 숨김
         $menu.find('.qpl-edit-btn').hide();
 
+        $menu.css({ visibility: 'hidden', display: 'block' });
         $(document.body).append($menu);
-        $menu.hide().fadeIn(animation_duration);
+
+        popper = Popper.createPopper(
+            document.getElementById('qplBtn'),
+            document.getElementById('qplMenu'),
+            {
+                placement: 'top',
+                modifiers: [
+                    { name: 'offset', options: { offset: [0, 6] } },
+                    { name: 'preventOverflow', options: { padding: 8 } },
+                    { name: 'flip', options: { fallbackPlacements: ['top-start', 'top-end'] } },
+                ],
+            },
+        );
+        await popper.update();
+
+        $menu.css({ visibility: '', display: 'none' }).fadeIn(animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
     } finally {
         _isOpening = false;
@@ -462,7 +491,7 @@ function closeMenu() {
     $(document.body).children('.qpl-dragging').remove();
 
     $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
-    
+    if (popper) { popper.destroy(); popper = null; }
 }
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
@@ -528,7 +557,7 @@ function enterEditMode(allAvatars) {
         exitEditMode(allAvatars);
     });
 
-    
+    if (popper) popper.update();
 }
 
 function exitEditMode(allAvatars) {
@@ -561,6 +590,7 @@ function exitEditMode(allAvatars) {
     $header.find('.qpl-theme-toggle-btn').on('click', e => {
         e.stopPropagation();
         $menu.find('.qpl-theme-bar').toggle();
+        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-all-btn').on('click', e => {
         e.stopPropagation();
@@ -570,7 +600,7 @@ function exitEditMode(allAvatars) {
         $header.find('.qpl-all-btn').addClass('active');
         $menu.find('.qpl-edit-btn').hide();
         renderList($menu.find('.qpl-list'), _allAvatars, false);
-        applyQplTheme(getQplTheme());
+        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-fav-btn').on('click', e => {
         e.stopPropagation();
@@ -590,7 +620,7 @@ function exitEditMode(allAvatars) {
                 </div>
             `);
         }
-        applyQplTheme(getQplTheme());
+        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-char-btn').on('click', e => {
         e.stopPropagation();
@@ -601,7 +631,7 @@ function exitEditMode(allAvatars) {
         const cid = getCurrentCharId();
         $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
         renderCharView($menu.find('.qpl-list'), cid);
-        applyQplTheme(getQplTheme());
+        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-edit-btn').on('click', e => {
         e.stopPropagation();
@@ -634,7 +664,7 @@ function exitEditMode(allAvatars) {
         }
     }
 
-    
+    if (popper) popper.update();
 }
 
 // ─── 터치/마우스 드래그 (QPM-style: in-container transform) ──────────────────
@@ -682,7 +712,6 @@ function setupTouchDrag($list) {
         if (!row || !list.contains(row)) return;
 
         e.preventDefault();
-        pauseObserver();
         const rows  = getRows();
         const idx   = rows.indexOf(row);
         const rowH  = row.offsetHeight;
@@ -737,7 +766,7 @@ function setupTouchDrag($list) {
         }
 
         resumeObserver();
-        
+        if (popper) popper.update();
     }
 
     list.addEventListener('pointerdown',   onPointerDown, { passive: false });
@@ -789,10 +818,10 @@ function createRow(avatarId, editMode = false) {
         </div>
     `);
 
-    // active row: 테마 accent 배경 + left bar CSS var
+    // active row: 테마 accent 배경 + left bar 색
     if (isActive) {
         $row.css('background', t.accent + '18');
-        $row[0].style.setProperty('--qpl-active-bar', t.accent);
+        $row.css('--qpl-active-bar', t.accent);
     }
 
     // active 색 즉시 적용
@@ -804,10 +833,10 @@ function createRow(avatarId, editMode = false) {
 
     if (!editMode) {
         $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
-            const accentColor = t.accent;
-            $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
-            $row.addClass('qpl-active').css('background', accentColor + '18');
-            $row[0].style.setProperty('--qpl-active-bar', accentColor);
+            // 잔상 방지: 클릭 즉시 active 클래스 교체 (창 닫지 않음)
+            $('#qplMenu .qpl-row').removeClass('qpl-active');
+            $row.addClass('qpl-active').css('background', t.accent + '18');
+            $('#qplMenu .qpl-row:not(.qpl-active)').css('background', '');
             await setUserAvatar(avatarId);
             updateButtonState();
         });
@@ -959,12 +988,11 @@ function setupPanelObserver() {
     _observer = new MutationObserver(() => {
         if (_observerPaused) return;
         clearTimeout(timer);
+        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
-    const target = document.getElementById('persona_management_panel')
-                ?? document.getElementById('rm_characters_block')
-                ?? document.body;
-    _observer.observe(target, { childList: true, subtree: true });
+    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
+    _observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────────
