@@ -70,11 +70,11 @@ function applyQplTheme(key) {
     });
 }
 
-/** @type {null} */
-let popper = null; // Popper 미사용 — closeMenu 잔재 방어용으로만 유지
+/** @type {Popper.Instance|null} */
+let popper = null;
 let isOpen = false;
 let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
-let currentView = 'all'; // 'all' | 'fav' | 'char'
+let currentView = 'fav'; // 'fav' | 'char'
 let _allAvatars  = [];    // openMenu에서 캐시, 뷰 전환 시 재사용
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -211,7 +211,6 @@ function refreshCharViewBtn() {
     const charId = getCurrentCharId();
     const has = charId ? getCharPersonas(charId).length > 0 : false;
     $('#qplMenu .qpl-char-btn').toggleClass('has-data', has);
-    applyQplTheme(getQplTheme()); // has-data 색상 즉시 반영
 }
 
 
@@ -249,6 +248,7 @@ function updateButtonState() {
     }, 100);
 }
 
+// ─── 메뉴 ─────────────────────────────────────────────────────────────────────
 // ─── 페르소나 선택 팝업 (CHAT_CHANGED 자동) ────────────────────────────────────
 function showPersonaSelectPopup(charId, personaIds) {
     $('#qplSelectPopup').remove();
@@ -312,9 +312,11 @@ async function toggleMenu() {
 async function openMenu() {
     if (_isOpening) return;
     _isOpening = true;
-    isOpen = true;          // await 전에 설정 → race condition 방지
+    isOpen = true;
     currentView = 'all';
+
     $('#qplMenu').stop(true, true).remove();
+    if (popper) { popper.destroy(); popper = null; }
 
     try {
         _allAvatars = await getUserAvatars(false);
@@ -355,32 +357,53 @@ async function openMenu() {
         Object.entries(QPL_THEMES).forEach(([key, t]) => {
             const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
                 style="border:none;background:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:6px;transition:transform 0.1s,opacity 0.1s;opacity:${key===curTheme?'1':'0.4'};transform:${key===curTheme?'scale(1.2)':'scale(1)'};">${t.label}</button>`);
-            $btn.on('click', e => { e.stopPropagation(); setQplTheme(key); });
+            $btn.on('click', e => { e.stopPropagation(); setQplTheme(key); if (popper) popper.update(); });
             $bar.append($btn);
         });
-
-        // ── 뷰 전환 헬퍼 ──────────────────────────────────────────
-        function switchView(view) {
-            if (currentView === view) return;
-            currentView = view;
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find(`.qpl-${view}-btn`).addClass('active');
-            applyQplTheme(getQplTheme()); // accent 색 재적용
-            const $list = $menu.find('.qpl-list');
-            if (view === 'all')  renderList($list, _allAvatars, false);
-            if (view === 'fav')  renderList($list, hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars, false);
-            if (view === 'char') renderCharView($list, getCurrentCharId());
-        }
 
         // 테마 토글
         $menu.find('.qpl-theme-toggle-btn').on('click', e => {
             e.stopPropagation();
             $menu.find('.qpl-theme-bar').toggle();
+            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
-        $menu.find('.qpl-all-btn').on('click',  e => { e.stopPropagation(); switchView('all');  });
-        $menu.find('.qpl-fav-btn').on('click',  e => { e.stopPropagation(); switchView('fav');  });
-        $menu.find('.qpl-char-btn').on('click', e => { e.stopPropagation(); switchView('char'); });
+        // 🎭 전체 뷰 버튼
+        $menu.find('.qpl-all-btn').on('click', e => {
+            e.stopPropagation();
+            if (currentView === 'all') return;
+            currentView = 'all';
+            $menu.find('.qpl-view-btn').removeClass('active');
+            $menu.find('.qpl-all-btn').addClass('active');
+            renderList($menu.find('.qpl-list'), _allAvatars, false);
+            requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
+
+        // ⭐ 즐겨찾기 뷰 버튼
+        $menu.find('.qpl-fav-btn').on('click', e => {
+            e.stopPropagation();
+            if (currentView === 'fav') return;
+            currentView = 'fav';
+            $menu.find('.qpl-view-btn').removeClass('active');
+            $menu.find('.qpl-fav-btn').addClass('active');
+            const ids = hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars;
+            renderList($menu.find('.qpl-list'), ids, false);
+            // hint 표시/숨김
+            $menu.find('.qpl-hint').toggle(!hasFavs);
+            requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
+
+        // 🎭 캐릭터 뷰 버튼
+        $menu.find('.qpl-char-btn').on('click', e => {
+            e.stopPropagation();
+            if (currentView === 'char') return;
+            currentView = 'char';
+            $menu.find('.qpl-view-btn').removeClass('active');
+            $menu.find('.qpl-char-btn').addClass('active');
+            $menu.find('.qpl-hint').hide();
+            renderCharView($menu.find('.qpl-list'), getCurrentCharId());
+            requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
 
         // 순서 편집
         $menu.find('.qpl-edit-btn').on('click', e => {
@@ -389,12 +412,8 @@ async function openMenu() {
         });
 
         $(document.body).append($menu);
-        $menu.hide().fadeIn(animation_duration || 150);
+        $menu.hide().fadeIn(animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
-    } catch (err) {
-        isOpen = false;
-        console.error(`[${MODULE_NAME}] openMenu 오류:`, err);
-        toastr.error(`페르소나 목록 오류: ${err?.message || err}`);
     } finally {
         _isOpening = false;
     }
@@ -407,7 +426,8 @@ function closeMenu() {
     // 드래그 중 메뉴가 닫히면 body에 남은 ghost 정리
     $(document.body).children('.qpl-dragging').remove();
 
-    $('#qplMenu').stop(true).animate({ opacity: 0 }, animation_duration, () => $('#qplMenu').remove());
+    $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
+    if (popper) { popper.destroy(); popper = null; }
 }
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
@@ -430,7 +450,7 @@ function renderCharView($list, charId) {
         `);
         return;
     }
-    personaIds.forEach(id => $list.append(createRow(id, false)));
+    personaIds.forEach(id => $list.append(createRow(id, false, true)));
 }
 
 // ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
@@ -461,9 +481,12 @@ function enterEditMode(allAvatars) {
         saveCustomOrder(newOrder);
         exitEditMode(allAvatars);
     });
+
+    if (popper) popper.update();
 }
 
 function exitEditMode(allAvatars) {
+    const listIds = getSortedFavorites(allAvatars);
     const charId  = getCurrentCharId();
     const charPs  = getCharPersonas(charId);
     const s       = getSettings();
@@ -492,31 +515,51 @@ function exitEditMode(allAvatars) {
     $header.find('.qpl-theme-toggle-btn').on('click', e => {
         e.stopPropagation();
         $menu.find('.qpl-theme-bar').toggle();
+        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
-
-    function switchView(view) {
-        if (currentView === view) return;
-        currentView = view;
-        $header.find('.qpl-view-btn').removeClass('active');
-        $header.find(`.qpl-${view}-btn`).addClass('active');
-        applyQplTheme(getQplTheme());
-        const $list = $menu.find('.qpl-list');
-        if (view === 'all')  renderList($list, _allAvatars, false);
-        if (view === 'fav')  renderList($list, hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars, false);
-        if (view === 'char') renderCharView($list, getCurrentCharId());
-    }
-
-    $header.find('.qpl-all-btn').on('click',  e => { e.stopPropagation(); switchView('all');  });
-    $header.find('.qpl-fav-btn').on('click',  e => { e.stopPropagation(); switchView('fav');  });
-    $header.find('.qpl-char-btn').on('click', e => { e.stopPropagation(); switchView('char'); });
-    $header.find('.qpl-edit-btn').on('click', e => { e.stopPropagation(); enterEditMode(allAvatars); });
+    $header.find('.qpl-all-btn').on('click', e => {
+        e.stopPropagation();
+        if (currentView === 'all') return;
+        currentView = 'all';
+        $menu.find('.qpl-view-btn').removeClass('active');
+        $header.find('.qpl-all-btn').addClass('active');
+        renderList($menu.find('.qpl-list'), _allAvatars, false);
+        requestAnimationFrame(() => { if (popper) popper.update(); });
+    });
+    $header.find('.qpl-fav-btn').on('click', e => {
+        e.stopPropagation();
+        if (currentView === 'fav') return;
+        currentView = 'fav';
+        $menu.find('.qpl-view-btn').removeClass('active');
+        $header.find('.qpl-fav-btn').addClass('active');
+        const ids = hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars;
+        renderList($menu.find('.qpl-list'), ids, false);
+        $menu.find('.qpl-hint').toggle(!hasFavs);
+        requestAnimationFrame(() => { if (popper) popper.update(); });
+    });
+    $header.find('.qpl-char-btn').on('click', e => {
+        e.stopPropagation();
+        if (currentView === 'char') return;
+        currentView = 'char';
+        $menu.find('.qpl-view-btn').removeClass('active');
+        $header.find('.qpl-char-btn').addClass('active');
+        $menu.find('.qpl-hint').hide();
+        renderCharView($menu.find('.qpl-list'), getCurrentCharId());
+        requestAnimationFrame(() => { if (popper) popper.update(); });
+    });
+    $header.find('.qpl-edit-btn').on('click', e => {
+        e.stopPropagation();
+        enterEditMode(allAvatars);
+    });
 
     applyQplTheme(getQplTheme());
 
     const $list = $menu.find('.qpl-list');
     if (currentView === 'all')  renderList($list, _allAvatars, false);
     else if (currentView === 'char') renderCharView($list, charId);
-    else renderList($list, hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars, false);
+    else renderList($list, listIds, false);
+
+    if (popper) popper.update();
 }
 
 // ─── 터치/마우스 드래그 (QPM-style: in-container transform) ──────────────────
@@ -564,7 +607,6 @@ function setupTouchDrag($list) {
         if (!row || !list.contains(row)) return;
 
         e.preventDefault();
-        pauseObserver(); // 드래그 중 MutationObserver 일시 정지
         const rows  = getRows();
         const idx   = rows.indexOf(row);
         const rowH  = row.offsetHeight;
@@ -606,13 +648,20 @@ function setupTouchDrag($list) {
         resetStyles(rows);
 
         if (currentIdx !== fromIdx) {
+            // Re-order DOM to match new position
             const parent = el.parentElement;
-            parent.removeChild(el);
             const siblings = [...parent.querySelectorAll('.qpl-row')];
-            parent.insertBefore(el, siblings[currentIdx] ?? null);
+            // Remove and re-insert at new index
+            parent.removeChild(el);
+            const ref = siblings[currentIdx] ?? null;
+            // Adjust ref since el was removed
+            const adjustedSiblings = [...parent.querySelectorAll('.qpl-row')];
+            const insertBefore = adjustedSiblings[currentIdx] ?? null;
+            parent.insertBefore(el, insertBefore);
         }
 
         resumeObserver();
+        if (popper) popper.update();
     }
 
     list.addEventListener('pointerdown',   onPointerDown, { passive: false });
@@ -622,7 +671,7 @@ function setupTouchDrag($list) {
 }
 
 // ─── 행 생성 ──────────────────────────────────────────────────────────────────
-function createRow(avatarId, editMode = false) {
+function createRow(avatarId, editMode = false, charView = false) {
     const { DOMPurify } = SillyTavern.libs;
     const name      = power_user.personas?.[avatarId] || avatarId;
     const title     = power_user.persona_descriptions?.[avatarId]?.title || '';
@@ -630,9 +679,6 @@ function createRow(avatarId, editMode = false) {
     const isActive  = avatarId === user_avatar;
     const isDefault = avatarId === power_user.default_persona;
     const locked    = getLockedPersona() === avatarId;
-    const charId    = getCurrentCharId();
-    const fav       = isFavorite(avatarId);
-    const linked    = charId ? isCharPersona(charId, avatarId) : false;
 
     const safeId    = DOMPurify.sanitize(avatarId);
     const safeName  = DOMPurify.sanitize(name);
@@ -649,17 +695,10 @@ function createRow(avatarId, editMode = false) {
                 ${safeTitle ? `<span class="qpl-tag">${safeTitle}</span>` : ''}
             </div>
             ${!editMode ? `
-            <div class="qpl-row-actions">
-                <button class="qpl-row-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                    <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
-                </button>
-                <button class="qpl-row-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 연결 해제' : '현재 캐릭터에 연결'}">
-                    <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
-                </button>
-                <button class="qpl-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
-                    <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
-                </button>
-            </div>` : ''}
+            <button class="qpl-pin-btn${locked ? ' active' : ''}"
+                    title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
+                <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
+            </button>` : ''}
         </div>
     `);
 
@@ -669,31 +708,6 @@ function createRow(avatarId, editMode = false) {
             await setUserAvatar(avatarId);
             updateButtonState();
         });
-
-        // ⭐ 즐겨찾기 토글
-        $row.find('.qpl-row-fav-btn').on('click', e => {
-            e.stopPropagation();
-            toggleFavorite(avatarId);
-            const now = isFavorite(avatarId);
-            $(e.currentTarget).toggleClass('active', now)
-                .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
-        });
-
-        // 👤 캐릭터 연결 토글
-        $row.find('.qpl-row-char-btn').on('click', e => {
-            e.stopPropagation();
-            const cid = getCurrentCharId();
-            if (!cid) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
-            toggleCharPersona(cid, avatarId);
-            const now = isCharPersona(cid, avatarId);
-            $(e.currentTarget).toggleClass('active', now)
-                .attr('title', now ? '캐릭터 연결 해제' : '현재 캐릭터에 연결')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
-            refreshCharViewBtn();
-        });
-
-        // 📌 채팅방 고정
         $row.find('.qpl-pin-btn').on('click', async e => {
             e.stopPropagation();
             await toggleChatLock(avatarId);
@@ -793,11 +807,8 @@ function setupPanelObserver() {
         // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
-    // 페르소나 패널만 감시 — 채팅 렌더링에 반응하지 않도록. 패널 없으면 body fallback.
-    const target = document.getElementById('persona_management_panel')
-                ?? document.getElementById('rm_characters_block')
-                ?? document.body;
-    _observer.observe(target, { childList: true, subtree: true });
+    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
+    _observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────────
