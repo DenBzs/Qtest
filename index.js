@@ -337,8 +337,11 @@ async function openMenu() {
         const charId  = getCurrentCharId();
         const charPs  = getCharPersonas(charId);
 
+        const curTheme = getQplTheme();
+        const initT    = QPL_THEMES[curTheme] || QPL_THEMES.lavender;
+
         const $menu = $(`
-            <div id="qplMenu">
+            <div id="qplMenu" style="--qpl-accent:${initT.accent}">
                 <div class="qpl-header">
                     <span class="qpl-header-title">🎭 페르소나Q</span>
                     <div class="qpl-header-actions">
@@ -364,7 +367,6 @@ async function openMenu() {
         renderList($menu.find('.qpl-list'), _allAvatars, false);
         // 테마 바 구성
         const $bar = $menu.find('.qpl-theme-bar');
-        const curTheme = getQplTheme();
         Object.entries(QPL_THEMES).forEach(([key, t]) => {
             const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
                 style="border:none;background:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:6px;transition:transform 0.1s,opacity 0.1s;opacity:${key===curTheme?'1':'0.4'};transform:${key===curTheme?'scale(1.2)':'scale(1)'};">${t.label}</button>`);
