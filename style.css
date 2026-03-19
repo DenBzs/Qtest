@@ -129,8 +129,7 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     display: flex;
     align-items: center;
     gap: 4px;
-    background: rgba(100,180,120,0.12);
-    border: 1px solid rgba(100,180,120,0.35);
+    border: 1px solid rgba(128,128,128,0.3);
     border-radius: 6px;
     color: inherit;
     font-size: 0.72em;
@@ -138,9 +137,9 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     padding: 3px 10px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s;
+    transition: opacity 0.15s;
 }
-.qpl-done-btn:hover { background: rgba(100,180,120,0.22); }
+.qpl-done-btn:hover { opacity: 0.8; }
 
 /* ── 스크롤 목록 ── */
 
