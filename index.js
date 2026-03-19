@@ -50,9 +50,16 @@ function applyQplTheme(key) {
         header.style.borderBottomColor = t.border;
         header.style.backgroundColor   = t.sub;
     }
-    // view 버튼 active accent 색 반영
+    // view 버튼 active accent 색 + 배경 반영
     menu.querySelectorAll('.qpl-view-btn.active').forEach(btn => {
-        btn.style.color = t.accent;
+        btn.style.color       = t.accent;
+        btn.style.background  = t.accent + '28';
+        btn.style.borderColor = t.accent + '99';
+    });
+    menu.querySelectorAll('.qpl-view-btn:not(.active)').forEach(btn => {
+        btn.style.color       = '';
+        btn.style.background  = '';
+        btn.style.borderColor = '';
     });
     // 👤 버튼: 연결 있으면 accent 색 적용
     const charBtn = menu.querySelector('.qpl-char-btn');
@@ -184,12 +191,14 @@ async function toggleChatLock(avatarId) {
 // 메뉴 내 모든 핀 버튼 상태 갱신
 function refreshPinButtons() {
     const locked = getLockedPersona();
+    const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
     $('#qplMenu .qpl-row[data-avatar]').each(function () {
         const avatarId = $(this).attr('data-avatar');
         const isLocked = locked === avatarId;
         const $btn = $(this).find('.qpl-pin-btn');
         if (!$btn.length) return;
         $btn.toggleClass('active', isLocked)
+            .css('color', isLocked ? t.accent : '')
             .attr('title', isLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
             .find('i').attr('class', `fa-${isLocked ? 'solid' : 'regular'} fa-thumbtack`);
     });
@@ -505,7 +514,7 @@ function renderCharView($list, charId) {
         `);
         return;
     }
-    personaIds.forEach(id => $list.append(createRow(id, false, true)));
+    personaIds.forEach(id => $list.append(createRow(id, false)));
 }
 
 // ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
@@ -767,7 +776,7 @@ function setupTouchDrag($list) {
 }
 
 // ─── 행 생성 ──────────────────────────────────────────────────────────────────
-function createRow(avatarId, editMode = false, charView = false) {
+function createRow(avatarId, editMode = false) {
     const { DOMPurify } = SillyTavern.libs;
     const name      = power_user.personas?.[avatarId] || avatarId;
     const title     = power_user.persona_descriptions?.[avatarId]?.title || '';
@@ -775,6 +784,10 @@ function createRow(avatarId, editMode = false, charView = false) {
     const isActive  = avatarId === user_avatar;
     const isDefault = avatarId === power_user.default_persona;
     const locked    = getLockedPersona() === avatarId;
+    const charId    = getCurrentCharId();
+    const fav       = isFavorite(avatarId);
+    const linked    = charId ? isCharPersona(charId, avatarId) : false;
+    const t         = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
 
     const safeId    = DOMPurify.sanitize(avatarId);
     const safeName  = DOMPurify.sanitize(name);
@@ -791,27 +804,86 @@ function createRow(avatarId, editMode = false, charView = false) {
                 ${safeTitle ? `<span class="qpl-tag">${safeTitle}</span>` : ''}
             </div>
             ${!editMode ? `
-            <button class="qpl-pin-btn${locked ? ' active' : ''}"
-                    title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
-                <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
-            </button>` : ''}
+            <div class="qpl-row-actions">
+                <button class="qpl-row-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+                    <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
+                </button>
+                <button class="qpl-row-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 연결 해제' : '현재 캐릭터에 연결'}">
+                    <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
+                </button>
+                <button class="qpl-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
+                    <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
+                </button>
+            </div>` : ''}
         </div>
     `);
 
+    // active 색 즉시 적용
+    if (!editMode) {
+        if (fav)    $row.find('.qpl-row-fav-btn').css('color', t.accent);
+        if (linked) $row.find('.qpl-row-char-btn').css('color', t.accent);
+        if (locked) $row.find('.qpl-pin-btn').css('color', t.accent);
+    }
+
     if (!editMode) {
         $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
-            // 잔상 방지: 클릭 즉시 active 클래스 교체
             $('#qplMenu .qpl-row').removeClass('qpl-active');
             $row.addClass('qpl-active');
             closeMenu();
             await setUserAvatar(avatarId);
             updateButtonState();
         });
+
+        // ⭐ 즐겨찾기 토글
+        $row.find('.qpl-row-fav-btn').on('click', e => {
+            e.stopPropagation();
+            toggleFavorite(avatarId);
+            const now = isFavorite(avatarId);
+            $(e.currentTarget).toggleClass('active', now)
+                .css('color', now ? t.accent : '')
+                .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
+            // 페르소나 패널 별 버튼 동기화
+            $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-fav-star`)
+                .toggleClass('active', now)
+                .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
+                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
+            // 헤더 ⭐ 버튼 edit 가시성 갱신 (즐겨찾기 탭일 때)
+            if (currentView === 'fav') {
+                const hasFavs = getSettings().favorites.length > 0;
+                $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
+            }
+        });
+
+        // 👤 캐릭터 연결 토글
+        $row.find('.qpl-row-char-btn').on('click', e => {
+            e.stopPropagation();
+            const cid = getCurrentCharId();
+            if (!cid) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
+            toggleCharPersona(cid, avatarId);
+            const now = isCharPersona(cid, avatarId);
+            $(e.currentTarget).toggleClass('active', now)
+                .css('color', now ? t.accent : '')
+                .attr('title', now ? '캐릭터 연결 해제' : '현재 캐릭터에 연결')
+                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
+            // 페르소나 패널 👤 버튼 동기화
+            $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-char-link-btn`)
+                .toggleClass('active', now)
+                .attr('title', now ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결')
+                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
+            // 헤더 👤 버튼 갱신
+            refreshCharViewBtn();
+            // 캐릭터 탭 편집 버튼 가시성
+            if (currentView === 'char') {
+                $('#qplMenu .qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
+            }
+        });
+
+        // 📌 채팅방 고정
         $row.find('.qpl-pin-btn').on('click', async e => {
             e.stopPropagation();
             const $btn = $(e.currentTarget);
             const willLock = !$btn.hasClass('active');
-            const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
             $btn.toggleClass('active', willLock)
                 .css('color', willLock ? t.accent : '')
                 .find('i').attr('class', `fa-${willLock ? 'solid' : 'regular'} fa-thumbtack`);
