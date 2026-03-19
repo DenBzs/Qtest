@@ -8,7 +8,7 @@ import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
 import { Popper } from '../../../../lib.js';
 
-const MODULE_NAME = 'Qtest';
+const MODULE_NAME = 'Quick-Persona-List';
 const supportsPersonaThumbnails = getThumbnailUrl('persona', 'test.png', true).includes('&t=');
 
 // ─── 테마 ──────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ const QPL_THEMES = {
     dark:     { label:'🖤', name:'다크',    bg:'#23233a', border:'#3a3a58', text:'#dcdaf0', sub:'#1a1a2e', accent:'#7a70c0', muted:'#9890c8' },
     white:    { label:'🤍', name:'화이트',  bg:'#ffffff', border:'#e0e0e0', text:'#222222', sub:'#f2f2f2', accent:'#7878c0', muted:'#aaaacc' },
     classic:  { label:'🤎', name:'클래식',  bg:'#f5f0e8', border:'#d8d0c4', text:'#2a2520', sub:'#ede7db', accent:'#8a7a60', muted:'#a09080' },
-    pink:     { label:'🩷', name:'핑크',    bg:'#fff7fa', border:'#f0d4e4', text:'#3c1830', sub:'#fdedf4', accent:'#c87890', muted:'#d8a0b8' },
+    pink:     { label:'🩷', name:'핑크',    bg:'#fef5fb', border:'#eacef2', text:'#3c1838', sub:'#f9eaf9', accent:'#c068b8', muted:'#d498cc' },
     green:    { label:'💚', name:'그린',    bg:'#f4fbf6', border:'#c8e8d0', text:'#1a3022', sub:'#e4f5ea', accent:'#4a9060', muted:'#78b890' },
     sky:      { label:'🩵', name:'스카이',  bg:'#f8feff', border:'#c4e8f8', text:'#143450', sub:'#edf9ff', accent:'#4890c8', muted:'#78b0d8' },
     lavender: { label:'💜', name:'라벤더',  bg:'#f8f5ff', border:'#d8cef0', text:'#2c2448', sub:'#ede8f8', accent:'#8868c0', muted:'#b098d8' },
@@ -44,9 +44,12 @@ function applyQplTheme(key) {
     menu.style.background = t.bg;
     menu.style.borderColor = t.border;
     menu.style.color = t.text;
-    // header border
+    // header border + background (한 톤 낮은 sub 컬러)
     const header = menu.querySelector('.qpl-header');
-    if (header) header.style.borderBottomColor = t.border;
+    if (header) {
+        header.style.borderBottomColor = t.border;
+        header.style.backgroundColor   = t.sub;
+    }
     // hint border
     const hint = menu.querySelector('.qpl-hint');
     if (hint) hint.style.borderTopColor = t.border;
@@ -208,6 +211,10 @@ async function openMenu() {
     _isOpening = true;
     isOpen = true;
 
+    // 이전 fadeOut이 진행 중이거나 잔여 메뉴가 남은 경우 즉시 정리 → 잔상/이동 방지
+    $('#qplMenu').stop(true, true).remove();
+    if (popper) { popper.destroy(); popper = null; }
+
     try {
         const allAvatars = await getUserAvatars(false);
         const s = getSettings();
@@ -254,7 +261,8 @@ async function openMenu() {
             e.stopPropagation();
             const $b = $menu.find('.qpl-theme-bar');
             $b.toggle();
-            if (popper) popper.update();
+            // 레이아웃 변경 후 한 프레임 뒤 위치 재계산 → 버벅임 방지
+            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
         $menu.find('.qpl-edit-btn').on('click', e => {
@@ -289,7 +297,7 @@ function closeMenu() {
     // 드래그 중 메뉴가 닫히면 body에 남은 ghost 정리
     $(document.body).children('.qpl-dragging').remove();
 
-    $('#qplMenu').fadeOut(animation_duration, () => $('#qplMenu').remove());
+    $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
     if (popper) { popper.destroy(); popper = null; }
 }
 
