@@ -389,8 +389,7 @@ async function openMenu() {
         });
 
         $(document.body).append($menu);
-        // opacity 애니메이션 — jQuery fadeIn은 display:flex를 block으로 덮어쓰는 문제가 있어 사용 안 함
-        $menu.css('opacity', 0).animate({ opacity: 1 }, animation_duration);
+        $menu.hide().fadeIn(animation_duration || 150);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
     } catch (err) {
         isOpen = false;
