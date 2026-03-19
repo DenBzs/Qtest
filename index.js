@@ -481,8 +481,42 @@ function closeMenu() {
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
 function renderList($list, listIds, editMode) {
-    $list.empty();
-    listIds.forEach(id => $list.append(createRow(id, editMode)));
+    if (editMode) {
+        // 편집 모드는 드래그 핸들 필요 — 전체 재생성
+        $list.empty();
+        listIds.forEach(id => $list.append(createRow(id, true)));
+        return;
+    }
+    // 일반 모드: 기존 행 재사용해서 깜빡임 방지
+    const existing = {};
+    $list.find('.qpl-row[data-avatar]').each(function () {
+        existing[$(this).attr('data-avatar')] = $(this);
+    });
+
+    const newSet = new Set(listIds);
+
+    // 목록에 없는 행 제거
+    Object.keys(existing).forEach(id => {
+        if (!newSet.has(id)) existing[id].remove();
+    });
+
+    // 순서대로 삽입/이동
+    listIds.forEach((id, i) => {
+        const $cur = $list.find('.qpl-row').eq(i);
+        if (existing[id]) {
+            // 이미 있으면 위치만 맞춤
+            if (!$cur.length || $cur.attr('data-avatar') !== id) {
+                existing[id].detach();
+                if ($cur.length) $cur.before(existing[id]);
+                else $list.append(existing[id]);
+            }
+        } else {
+            // 없으면 새로 생성
+            const $newRow = createRow(id, false);
+            if ($cur.length) $cur.before($newRow);
+            else $list.append($newRow);
+        }
+    });
 }
 
 // ─── 캐릭터 뷰 렌더 ────────────────────────────────────────────────────────────
@@ -837,10 +871,25 @@ function createRow(avatarId, editMode = false) {
                 .toggleClass('active', now)
                 .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
-            // 헤더 ⭐ 버튼 edit 가시성 갱신 (즐겨찾기 탭일 때)
-            if (currentView === 'fav') {
+            // 즐겨찾기 탭에서 해제하면 즉시 행 제거
+            if (currentView === 'fav' && !now) {
+                $row.fadeOut(150, () => {
+                    $row.remove();
+                    const hasFavs = getSettings().favorites.length > 0;
+                    $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
+                    if (!hasFavs) {
+                        $('#qplMenu .qpl-list').html(`
+                            <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
+                                <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
+                                즐겨찾기한 페르소나가 없어요.<br>
+                                <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
+                            </div>
+                        `);
+                    }
+                });
+            } else {
                 const hasFavs = getSettings().favorites.length > 0;
-                $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
+                if (currentView === 'fav') $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
             }
         });
 
@@ -861,8 +910,15 @@ function createRow(avatarId, editMode = false) {
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
             // 헤더 👤 버튼 갱신
             refreshCharViewBtn();
-            // 캐릭터 탭 편집 버튼 가시성
-            if (currentView === 'char') {
+            // 캐릭터 탭에서 해제하면 즉시 행 제거
+            if (currentView === 'char' && !now) {
+                $row.fadeOut(150, () => {
+                    $row.remove();
+                    const remaining = getCharPersonas(cid).length;
+                    $('#qplMenu .qpl-edit-btn').toggle(remaining > 0);
+                    if (remaining === 0) renderCharView($('#qplMenu .qpl-list'), cid);
+                });
+            } else if (currentView === 'char') {
                 $('#qplMenu .qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
             }
         });
