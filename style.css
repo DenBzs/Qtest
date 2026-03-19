@@ -32,8 +32,8 @@ body.square-avatars #qplBtnImg {
 
 #qplMenu {
     z-index: 30000;
-    background: #eeeaf6;
-    border: 1px solid #d0c8e8;
+    background: #f8f5ff;
+    border: 1px solid #d8cef0;
     border-radius: 12px;
     min-width: 270px;
     max-width: 360px;
@@ -41,7 +41,8 @@ body.square-avatars #qplBtnImg {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    color: #2a2535;
+    color: #2c2448;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 /* ── 헤더 ─────────────────────────────────────── */
@@ -51,8 +52,9 @@ body.square-avatars #qplBtnImg {
     align-items: center;
     justify-content: space-between;
     padding: 8px 12px 6px;
-    border-bottom: 1px solid #d0c8e8;
+    border-bottom: 1px solid #d8cef0;
     flex-shrink: 0;
+    transition: border-color 0.15s;
 }
 
 .qpl-header-title {
@@ -60,11 +62,36 @@ body.square-avatars #qplBtnImg {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #6a5f8a;
+    color: inherit;
+    opacity: 0.6;
     user-select: none;
 }
 
 .qpl-header-title i { margin-right: 6px; }
+
+/* 테마 토글 버튼 */
+.qpl-theme-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+    border-radius: 5px;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    line-height: 1;
+}
+.qpl-theme-toggle-btn:hover { opacity: 1; }
+
+/* 테마 선택 바 */
+.qpl-theme-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    flex-shrink: 0;
+}
 
 /* 순서 편집 버튼 */
 .qpl-edit-btn {
@@ -72,18 +99,18 @@ body.square-avatars #qplBtnImg {
     align-items: center;
     gap: 4px;
     background: rgba(120,100,180,0.08);
-    border: 1px solid #c4b8e0;
+    border: 1px solid rgba(120,100,180,0.25);
     border-radius: 6px;
-    color: #8878aa;
+    color: inherit;
+    opacity: 0.7;
     font-size: 0.72em;
     font-weight: 600;
     padding: 3px 8px;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, opacity 0.15s;
 }
-
-.qpl-edit-btn:hover { background: rgba(120,100,180,0.16); color: #6a5f8a; }
+.qpl-edit-btn:hover { background: rgba(120,100,180,0.16); opacity: 1; }
 
 /* 편집 완료 버튼 */
 .qpl-done-btn {
@@ -91,9 +118,9 @@ body.square-avatars #qplBtnImg {
     align-items: center;
     gap: 4px;
     background: rgba(100,180,120,0.12);
-    border: 1px solid #a8d8b0;
+    border: 1px solid rgba(100,180,120,0.35);
     border-radius: 6px;
-    color: #3a7a50;
+    color: inherit;
     font-size: 0.72em;
     font-weight: 700;
     padding: 3px 10px;
@@ -101,7 +128,6 @@ body.square-avatars #qplBtnImg {
     white-space: nowrap;
     transition: background 0.15s;
 }
-
 .qpl-done-btn:hover { background: rgba(100,180,120,0.22); }
 
 /* ── 스크롤 목록 ──────────────────────────────── */
@@ -123,9 +149,11 @@ body.square-avatars #qplBtnImg {
 .qpl-hint {
     padding: 6px 14px 8px;
     font-size: 0.76em;
-    color: #8878aa;
+    color: inherit;
+    opacity: 0.55;
     user-select: none;
-    border-top: 1px solid #ddd6f0;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    transition: border-color 0.15s;
 }
 
 .qpl-hint i { color: #c0a030; margin-right: 4px; }
@@ -154,15 +182,16 @@ body.square-avatars #qplBtnImg {
     position: absolute;
     left: 0; top: 20%; bottom: 20%;
     width: 2px;
-    background: #9b88cc;
+    background: currentColor;
+    opacity: 0.4;
     border-radius: 2px;
 }
 
 /* ── 드래그 핸들 ──────────────────────────────── */
 
-/* 편집 모드 행 전체에 touch-action: none → 즉시 드래그 시작 */
+/* QPM-style: touch-action on handle only */
 .qpl-row.qpl-edit-mode {
-    touch-action: none;
+    touch-action: pan-y; /* allow vertical scroll on row itself */
 }
 
 .qpl-drag-handle {
@@ -171,28 +200,16 @@ body.square-avatars #qplBtnImg {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #b0a0cc;
+    color: inherit;
+    opacity: 0.4;
     cursor: grab;
     font-size: 0.75em;
-    touch-action: none;
+    touch-action: none; /* capture touch here */
     padding: 4px 0;
     user-select: none;
 }
 
 .qpl-drag-handle:active { cursor: grabbing; }
-
-/* 드래그 중 고스트 — body에 fixed로 float, .qpl-row 클론임 */
-.qpl-dragging {
-    position: fixed;
-    z-index: 99999;
-    background: #e6e0f5;
-    border: 1px solid #9b88cc;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    pointer-events: none;
-    opacity: 0.95;
-    margin: 0;
-}
 
 /* ── 아바타 ─────────────────────────────────── */
 
@@ -209,7 +226,7 @@ body.square-avatars #qplBtnImg {
     border-radius: 50%;
     object-fit: cover;
     object-position: center;
-    border: 1px solid #d0c8e8;
+    border: 1px solid rgba(128,128,128,0.25);
     outline: 2px solid transparent;
     transition: outline-color 0.15s;
 }
@@ -243,7 +260,7 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     line-height: 1.3;
     flex-shrink: 0;
     max-width: 50%;
-    color: #2a2535;
+    color: inherit;
 }
 
 .qpl-tag {
@@ -252,14 +269,15 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     font-size: 0.68em;
     font-weight: 500;
     background: rgba(120,100,180,0.10);
-    border: 1px solid #c4b8e0;
+    border: 1px solid rgba(120,100,180,0.2);
     border-radius: 8px;
     padding: 1px 7px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.7;
-    color: #6a5f8a;
+    color: inherit;
+    opacity: 0.7;
 }
 
 /* ── 핀 버튼 ─────────────────────────────────── */
@@ -268,7 +286,7 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
     flex-shrink: 0;
     background: none;
     border: none;
-    color: #b0a0cc;
+    color: inherit;
     cursor: pointer;
     padding: 4px 6px;
     border-radius: 5px;
@@ -280,9 +298,8 @@ body.big-avatars .qpl-avatar-wrap   { width: 46px; height: 46px; }
 
 .qpl-row:hover .qpl-pin-btn,
 .qpl-pin-btn.active          { opacity: 1; }
-.qpl-pin-btn:hover           { background: rgba(120,100,180,0.12); color: #6a5f8a; }
+.qpl-pin-btn:hover           { background: rgba(120,100,180,0.12); }
 .qpl-pin-btn.active          { color: #4a90d9; }
-.qpl-pin-btn.active:hover    { color: #6c63ff; }
 
 /* ── 즐겨찾기 별 (페르소나 패널) ─────────────── */
 
