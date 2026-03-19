@@ -400,9 +400,11 @@ async function openMenu() {
             currentView = 'fav';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-fav-btn').addClass('active');
-            // 편집 버튼: 즐겨찾기 있을 때만
-            $menu.find('.qpl-edit-btn').toggle(hasFavs);
-            if (hasFavs) {
+            applyQplTheme(getQplTheme());
+            // 클릭 시점에 즐겨찾기 상태 재확인
+            const curFavs = getSettings().favorites.length > 0;
+            $menu.find('.qpl-edit-btn').toggle(curFavs);
+            if (curFavs) {
                 renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
             } else {
                 $menu.find('.qpl-list').html(`
@@ -413,7 +415,6 @@ async function openMenu() {
                     </div>
                 `);
             }
-            requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
         // 👤 캐릭터 뷰 버튼
@@ -593,8 +594,10 @@ function exitEditMode(allAvatars) {
         currentView = 'fav';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-fav-btn').addClass('active');
-        $menu.find('.qpl-edit-btn').toggle(hasFavs);
-        if (hasFavs) {
+        applyQplTheme(getQplTheme());
+        const curFavs = getSettings().favorites.length > 0;
+        $menu.find('.qpl-edit-btn').toggle(curFavs);
+        if (curFavs) {
             renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
         } else {
             $menu.find('.qpl-list').html(`
@@ -605,7 +608,6 @@ function exitEditMode(allAvatars) {
                 </div>
             `);
         }
-        requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-char-btn').on('click', e => {
         e.stopPropagation();
