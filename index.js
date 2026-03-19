@@ -75,6 +75,13 @@ function applyQplTheme(key) {
     const hint = menu.querySelector('.qpl-hint');
     if (hint) hint.style.borderTopColor = t.border;
     menu.dataset.theme = key;
+    // done-btn에 accent 색 적용
+    const doneBtn = menu.querySelector('.qpl-done-btn');
+    if (doneBtn) {
+        doneBtn.style.background    = t.accent + '22';
+        doneBtn.style.borderColor   = t.accent + '99';
+        doneBtn.style.color         = t.accent;
+    }
     // theme bar buttons
     menu.querySelectorAll('.qpl-theme-btn').forEach(btn => {
         const active = btn.dataset.theme === key;
@@ -363,7 +370,6 @@ async function openMenu() {
 
         // 초기 전체 뷰 렌더
         renderList($menu.find('.qpl-list'), _allAvatars, false);
-
         // 테마 바 구성
         const $bar = $menu.find('.qpl-theme-bar');
         const curTheme = getQplTheme();
@@ -400,23 +406,40 @@ async function openMenu() {
             currentView = 'fav';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-fav-btn').addClass('active');
-            const ids = hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars;
-            renderList($menu.find('.qpl-list'), ids, false);
-            // hint 표시/숨김
-            $menu.find('.qpl-hint').toggle(!hasFavs);
+            // 편집 버튼: 즐겨찾기 있을 때만
+            $menu.find('.qpl-edit-btn').toggle(hasFavs);
+            if (hasFavs) {
+                renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
+            } else {
+                $menu.find('.qpl-list').html(`
+                    <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
+                        <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
+                        즐겨찾기한 페르소나가 없어요.<br>
+                        <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
+                    </div>
+                `);
+            }
             requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
-        // 🎭 캐릭터 뷰 버튼
+        // 👤 캐릭터 뷰 버튼
         $menu.find('.qpl-char-btn').on('click', e => {
             e.stopPropagation();
             if (currentView === 'char') return;
             currentView = 'char';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-char-btn').addClass('active');
-            $menu.find('.qpl-hint').hide();
-            renderCharView($menu.find('.qpl-list'), getCurrentCharId());
+            // 편집 버튼: 캐릭터 페르소나 있을 때만
+            const cid = getCurrentCharId();
+            $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
+            renderCharView($menu.find('.qpl-list'), cid);
             requestAnimationFrame(() => { if (popper) popper.update(); });
+        });
+
+        // 🎭 전체 뷰로 돌아올 때 편집 버튼 숨김
+        $menu.find('.qpl-all-btn').on('click', e => {
+            // 이미 핸들러 있지만 edit-btn 토글 추가
+            $menu.find('.qpl-edit-btn').hide();
         });
 
         // 순서 편집
@@ -424,6 +447,8 @@ async function openMenu() {
             e.stopPropagation();
             enterEditMode(_allAvatars);
         });
+        // 전체 탭이 기본이므로 편집 버튼 숨김
+        $menu.find('.qpl-edit-btn').hide();
 
         $menu.css({ visibility: 'hidden', display: 'block' });
         $(document.body).append($menu);
@@ -485,10 +510,12 @@ function renderCharView($list, charId) {
 
 // ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
 function enterEditMode(allAvatars) {
-    // [fix-5] getSettings() 중복 호출 제거 — getSortedFavorites 내부에서 이미 호출함
-    const listIds = getSortedFavorites(allAvatars);
+    const charId  = getCurrentCharId();
+    const isChar  = currentView === 'char';
+    const listIds = isChar ? getCharPersonas(charId) : getSortedFavorites(allAvatars);
 
-    const $header = $('#qplMenu .qpl-header');
+    const $menu   = $('#qplMenu');
+    const $header = $menu.find('.qpl-header');
     $header.html(`
         <span class="qpl-header-title">
             <i class="fa-solid fa-grip-lines"></i> 순서 편집
@@ -497,8 +524,10 @@ function enterEditMode(allAvatars) {
             <i class="fa-solid fa-check"></i> 편집 완료
         </button>
     `);
+    // done-btn에 테마 accent 색 즉시 적용
+    requestAnimationFrame(() => applyQplTheme(getQplTheme()));
 
-    const $list = $('#qplMenu .qpl-list');
+    const $list = $menu.find('.qpl-list');
     renderList($list, listIds, true);
     setupTouchDrag($list);
 
@@ -508,7 +537,14 @@ function enterEditMode(allAvatars) {
         $list.find('.qpl-row[data-avatar]').each(function () {
             newOrder.push($(this).attr('data-avatar'));
         });
-        saveCustomOrder(newOrder);
+        if (isChar && charId) {
+            // 캐릭터 탭 순서 저장
+            const s = getSettings();
+            s.charPersonas[charId] = newOrder;
+            saveSettings();
+        } else {
+            saveCustomOrder(newOrder);
+        }
         exitEditMode(allAvatars);
     });
 
@@ -538,7 +574,7 @@ function exitEditMode(allAvatars) {
                 <i class="fa-solid fa-user"></i>
             </button>
             <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
-            ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
+            ${hasFavs || charPs.length ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
         </div>
     `);
 
@@ -553,7 +589,7 @@ function exitEditMode(allAvatars) {
         currentView = 'all';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-all-btn').addClass('active');
-        $menu.find('.qpl-hint').hide();
+        $menu.find('.qpl-edit-btn').hide();
         renderList($menu.find('.qpl-list'), _allAvatars, false);
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
@@ -563,9 +599,18 @@ function exitEditMode(allAvatars) {
         currentView = 'fav';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-fav-btn').addClass('active');
-        const ids = hasFavs ? getSortedFavorites(_allAvatars) : _allAvatars;
-        renderList($menu.find('.qpl-list'), ids, false);
-        $menu.find('.qpl-hint').toggle(!hasFavs);
+        $menu.find('.qpl-edit-btn').toggle(hasFavs);
+        if (hasFavs) {
+            renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
+        } else {
+            $menu.find('.qpl-list').html(`
+                <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
+                    <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
+                    즐겨찾기한 페르소나가 없어요.<br>
+                    <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
+                </div>
+            `);
+        }
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-char-btn').on('click', e => {
@@ -574,8 +619,9 @@ function exitEditMode(allAvatars) {
         currentView = 'char';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-char-btn').addClass('active');
-        $menu.find('.qpl-hint').hide();
-        renderCharView($menu.find('.qpl-list'), getCurrentCharId());
+        const cid = getCurrentCharId();
+        $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
+        renderCharView($menu.find('.qpl-list'), cid);
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-edit-btn').on('click', e => {
@@ -586,9 +632,28 @@ function exitEditMode(allAvatars) {
     applyQplTheme(getQplTheme());
 
     const $list = $menu.find('.qpl-list');
-    if (currentView === 'all')       renderList($list, _allAvatars, false);
-    else if (currentView === 'char') renderCharView($list, charId);
-    else                             renderList($list, listIds, false);
+    const $editBtn = $menu.find('.qpl-edit-btn');
+    if (currentView === 'all') {
+        $editBtn.hide();
+        renderList($list, _allAvatars, false);
+    } else if (currentView === 'char') {
+        $editBtn.toggle(charPs.length > 0);
+        renderCharView($list, charId);
+    } else {
+        // fav
+        $editBtn.toggle(hasFavs);
+        if (hasFavs) {
+            renderList($list, listIds, false);
+        } else {
+            $list.html(`
+                <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
+                    <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
+                    즐겨찾기한 페르소나가 없어요.<br>
+                    <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
+                </div>
+            `);
+        }
+    }
 
     if (popper) popper.update();
 }
