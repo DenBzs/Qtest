@@ -990,14 +990,55 @@ function resumeObserver() { _observerPaused = false; }
 
 function setupPanelObserver() {
     let timer = null;
-    _observer = new MutationObserver(() => {
+    _observer = new MutationObserver((mutations) => {
+        // ST 기본 페르소나 선택 팝업 억제 — QPL charPersonas가 있는 캐릭터일 때만
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType !== 1) continue;
+                // ST의 선택 팝업은 .popup 또는 #persona-selector 류의 모달
+                const isSTPersonaPopup =
+                    (node.id && /persona.*(select|modal|dialog)/i.test(node.id)) ||
+                    (node.className && typeof node.className === 'string' &&
+                     /persona.*(select|modal|dialog)/i.test(node.className)) ||
+                    node.querySelector?.('[class*="persona"][class*="select"], [id*="persona"][id*="select"]');
+                if (isSTPersonaPopup) {
+                    const charId = getCurrentCharId();
+                    if (charId && getCharPersonas(charId).length > 0) {
+                        node.remove();
+                    }
+                }
+            }
+        }
+
         if (_observerPaused) return;
         clearTimeout(timer);
-        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
-    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
-    _observer.observe(document.body, { childList: true, subtree: true });
+    const target = document.getElementById('persona_management_panel')
+                ?? document.getElementById('rm_characters_block')
+                ?? document.body;
+    _observer.observe(target, { childList: true, subtree: true });
+    // ST 팝업 억제는 body 직접 감시 필요
+    if (target !== document.body) {
+        new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                for (const node of m.addedNodes) {
+                    if (node.nodeType !== 1) continue;
+                    const isSTPersonaPopup =
+                        (node.id && /persona.*(select|modal|dialog)/i.test(node.id)) ||
+                        (node.className && typeof node.className === 'string' &&
+                         /persona.*(select|modal|dialog)/i.test(node.className)) ||
+                        node.querySelector?.('[class*="persona"][class*="select"], [id*="persona"][id*="select"]');
+                    if (isSTPersonaPopup) {
+                        const charId = getCurrentCharId();
+                        if (charId && getCharPersonas(charId).length > 0) {
+                            node.remove();
+                        }
+                    }
+                }
+            }
+        }).observe(document.body, { childList: true });
+    }
 }
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────────
