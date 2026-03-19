@@ -54,20 +54,20 @@ function applyQplTheme(key) {
     menu.querySelectorAll('.qpl-view-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
-    // 👤 버튼: 연결 없음=흰색 아이콘, 있음=accent 색+배경
+    // 👤 버튼: 연결 있으면 accent 색 적용
     const charBtn = menu.querySelector('.qpl-char-btn');
     if (charBtn) {
         if (charBtn.classList.contains('has-data')) {
             charBtn.style.color = t.accent;
-            charBtn.style.background = `${t.accent}22`;
-            charBtn.style.borderColor = `${t.accent}88`;
+            charBtn.style.borderColor = t.accent + '99';
+            charBtn.style.background = t.accent + '28';
         } else {
             charBtn.style.color = '';
-            charBtn.style.background = 'transparent';
             charBtn.style.borderColor = '';
+            charBtn.style.background = 'transparent';
         }
     }
-    // 핀 버튼 active 색을 accent으로
+    // 핀 버튼 active → accent 색
     menu.querySelectorAll('.qpl-pin-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
@@ -717,7 +717,6 @@ function createRow(avatarId, editMode = false, charView = false) {
         });
         $row.find('.qpl-pin-btn').on('click', async e => {
             e.stopPropagation();
-            // 즉시 시각 피드백 — async 완료 전에 색 변경
             const $btn = $(e.currentTarget);
             const willLock = !$btn.hasClass('active');
             const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
