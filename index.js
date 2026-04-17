@@ -1495,6 +1495,13 @@ function migrateFromLegacy() {
 // I. Mount & Init
 // ══════════════════════════════════════════
 
+function applyAllGroups() {
+    const pn = getCurrentPreset();
+    if (!pn) return;
+    const groups = getGroupsForPreset(pn);
+    groups.forEach((_, gi) => applyGroup(pn, gi));
+}
+
 function mount() {
     if (document.getElementById('ptm-mover-drawer')) return true;
     const target = document.querySelector('.range-block.m-b-1');
@@ -1512,8 +1519,8 @@ jQuery(async () => {
         migrateFromLegacy();
         let c = 0;
         const t = setInterval(() => { if (mount() || ++c > 50) clearInterval(t); }, 200);
-        eventSource.on(event_types.OAI_PRESET_CHANGED_AFTER, () => renderTGGroups());
-        eventSource.on(event_types.APP_READY, () => injectPpcButton());
+        eventSource.on(event_types.OAI_PRESET_CHANGED_AFTER, () => { renderTGGroups(); applyAllGroups(); });
+        eventSource.on(event_types.APP_READY, () => { injectPpcButton(); applyAllGroups(); });
         setupPpcEvents();
         console.log(`[${extensionName}] Loaded`);
     } catch(err) { console.error(`[${extensionName}] Failed:`, err); }
