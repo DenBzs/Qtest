@@ -654,13 +654,21 @@ async function performOperation(isMove) {
     const tp = JSON.parse(JSON.stringify(openai_settings[dstIdx]));
     tp.prompts = tp.prompts || []; tp.prompt_order = tp.prompt_order || [];
     const existingIds = new Set(tp.prompts.map(p => p.identifier)), newIds = [];
+    // Resolve visual insertPosition to raw index in go.order.
+    // targetOrderedPrompts is stale-filtered, so direct index reuse is wrong.
+    const go = tp.prompt_order.find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID));
+    const baseInsertIdx = (() => {
+        if (!go?.order || insertPosition === 0) return 0;
+        const beforeId = targetOrderedPrompts[insertPosition - 1]?.identifier;
+        const rawIdx = beforeId ? go.order.findIndex(e => e.identifier === beforeId) : -1;
+        return rawIdx >= 0 ? rawIdx + 1 : go.order.length;
+    })();
     selected.forEach((entry, offset) => {
         const pd = JSON.parse(JSON.stringify(entry.prompt));
         let id = pd.identifier;
         if (existingIds.has(id)) { let c = 1, base = id.replace(/_\d+$/, ''); while (existingIds.has(`${base}_${c}`)) c++; id = `${base}_${c}`; pd.identifier = id; pd.name = `${pd.name || entry.identifier} (${c})`; }
         existingIds.add(id); newIds.push(id); tp.prompts.push(pd);
-        const go = tp.prompt_order.find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID));
-        if (go?.order) go.order.splice(insertPosition + offset, 0, { identifier: id, enabled: true });
+        if (go?.order) go.order.splice(baseInsertIdx + offset, 0, { identifier: id, enabled: true });
         else tp.prompt_order.push({ character_id: GLOBAL_DUMMY_ID, order: [{ identifier: id, enabled: true }] });
         for (const oe of tp.prompt_order) if (String(oe.character_id) !== String(GLOBAL_DUMMY_ID) && oe.order) oe.order.push({ identifier: id, enabled: true });
     });
@@ -700,12 +708,32 @@ async function performSamePresetMove(n, makeGroup, groupName) {
     for (const oe of (sp.prompt_order || [])) {
         if (!oe.order) continue;
         const isGlobal = String(oe.character_id) === String(GLOBAL_DUMMY_ID);
-        let removedBefore = 0;
-        for (let i = 0; i < insertPosition && i < oe.order.length; i++) {
-            if (selectedSet.has(oe.order[i].identifier)) removedBefore++;
-        }
         const filtered = oe.order.filter(e => !selectedSet.has(e.identifier));
-        const adjPos = Math.max(0, Math.min(insertPosition - removedBefore, filtered.length));
+        let adjPos;
+        if (isGlobal) {
+            // Resolve visual insertPosition to index in filtered (stale-safe, handles selected anchors).
+            if (insertPosition === 0) {
+                adjPos = 0;
+            } else {
+                let anchorId = null;
+                for (let vi = insertPosition - 1; vi >= 0; vi--) {
+                    const id = sourceOrderedPrompts[vi]?.identifier;
+                    if (id && !selectedSet.has(id)) { anchorId = id; break; }
+                }
+                if (anchorId) {
+                    const idx = filtered.findIndex(e => e.identifier === anchorId);
+                    adjPos = idx >= 0 ? idx + 1 : filtered.length;
+                } else {
+                    adjPos = 0;
+                }
+            }
+        } else {
+            let removedBefore = 0;
+            for (let i = 0; i < insertPosition && i < oe.order.length; i++) {
+                if (selectedSet.has(oe.order[i].identifier)) removedBefore++;
+            }
+            adjPos = Math.max(0, Math.min(insertPosition - removedBefore, filtered.length));
+        }
         const toInsert = isGlobal
             ? selected.map(e => ({ identifier: e.identifier, enabled: e.enabled }))
             : selected.map(e => ({ identifier: e.identifier, enabled: true }));
