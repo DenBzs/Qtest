@@ -404,9 +404,13 @@ async function copyGroupToPreset(gi) {
         .join('');
     if (!presetOpts) { toastr.warning('복사할 다른 프리셋이 없습니다'); return; }
 
+    // Default to first option in case user never touches the select
+    let selectedDst = Object.keys(openai_setting_names)
+        .find(n => n !== pn && openai_settings[openai_setting_names[n]]) || '';
+
     const html = `
         <div style="margin-bottom:10px">
-            <label style="font-size:12px;opacity:0.7;display:block;margin-bottom:4px">복사할 대상 프리셋:</label>
+            <label style="font-size:12px;opacity:0.7;display:block;margin-bottom:4px">그룹을 붙여넣을 프롬프트:</label>
             <select id="ptm-cg-dst" style="width:100%;padding:6px;border-radius:6px;box-sizing:border-box">
                 ${presetOpts}
             </select>
@@ -415,10 +419,22 @@ async function copyGroupToPreset(gi) {
             토글 ${sourceGroup.toggles.length}개 · 이름이 일치하는 프롬프트에 자동 연결됩니다
         </div>`;
 
+    // Capture select value while popup is open (DOM is gone after await resolves)
+    const observer = new MutationObserver(() => {
+        const sel = document.getElementById('ptm-cg-dst');
+        if (sel && !sel._ptmWired) {
+            sel._ptmWired = true;
+            selectedDst = sel.value;
+            sel.addEventListener('change', () => { selectedDst = sel.value; });
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     const ok = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '복사', cancelButton: '취소' });
+    observer.disconnect();
     if (!ok) return;
 
-    const dstPresetName = document.getElementById('ptm-cg-dst')?.value;
+    const dstPresetName = selectedDst;
     if (!dstPresetName) return;
 
     const dstPreset = getLivePresetData(dstPresetName);
