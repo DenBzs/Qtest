@@ -485,14 +485,6 @@ function getOrderedPrompts(preset) {
         })
         .filter(Boolean);
 
-    // Append prompts that exist in the prompts array but are NOT yet in
-    // prompt_order (newly added prompts). They would otherwise be invisible.
-    for (const p of prompts) {
-        if (!inOrder.has(p.identifier)) {
-            ordered.push({ identifier: p.identifier, enabled: false, prompt: p });
-        }
-    }
-
     return ordered;
 }
 function getLivePresetData(presetName) {
