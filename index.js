@@ -472,16 +472,28 @@ function getPromptOrder(preset) {
 }
 function getOrderedPrompts(preset) {
     const prompts = preset?.prompts || [];
-    // Only include entries that still exist in the prompts array.
-    // Deleted prompts linger in prompt_order but have no definition —
-    // filter them out entirely so the copy/move list stays clean.
-    return getPromptOrder(preset)
+    const order   = getPromptOrder(preset);
+    const inOrder = new Set(order.map(e => e.identifier));
+
+    // Start with prompts that appear in prompt_order (preserves user ordering).
+    // Filter out any that no longer exist in the prompts array (deleted).
+    const ordered = order
         .map(e => {
             const def = prompts.find(p => p.identifier === e.identifier);
-            if (!def) return null;
+            if (!def) return null; // deleted — skip
             return { identifier: e.identifier, enabled: e.enabled, prompt: def };
         })
         .filter(Boolean);
+
+    // Append prompts that exist in the prompts array but are NOT yet in
+    // prompt_order (newly added prompts). They would otherwise be invisible.
+    for (const p of prompts) {
+        if (!inOrder.has(p.identifier)) {
+            ordered.push({ identifier: p.identifier, enabled: false, prompt: p });
+        }
+    }
+
+    return ordered;
 }
 function getLivePresetData(presetName) {
     if (!presetName) return null;
