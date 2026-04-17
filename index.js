@@ -1,622 +1,835 @@
-/**
- * Quick-Persona-List
- * ⚠️ 원본 Extension-QuickPersona와 동시 사용 불가
- */
+// PromptQM — prompt-qm
 
-import { animation_duration, eventSource, event_types, getThumbnailUrl } from '../../../../script.js';
-import { power_user } from '../../../power-user.js';
-import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
-import { Popper } from '../../../../lib.js';
+const extensionName   = 'Quick-Prompt-Manager';
+const GLOBAL_DUMMY_ID = 100001;
+const TG_KEY          = extensionName;
 
-const MODULE_NAME = 'Qtest';
-const supportsPersonaThumbnails = getThumbnailUrl('persona', 'test.png', true).includes('&t=');
+let getRequestHeaders, openai_setting_names, openai_settings,
+    extension_settings, saveSettingsDebounced, oai_settings,
+    eventSource, event_types, setupChatCompletionPromptManager,
+    callGenericPopup, POPUP_TYPE;
 
-// ─── 테마 ──────────────────────────────────────────────────────────────────────
-const QPL_THEMES = {
-    dark:     { label:'🖤', name:'다크',    bg:'#23233a', border:'#3a3a58', text:'#dcdaf0', sub:'#1a1a2e', accent:'#7a70c0', muted:'#9890c8' },
-    white:    { label:'🤍', name:'화이트',  bg:'#ffffff', border:'#e0e0e0', text:'#222222', sub:'#f2f2f2', accent:'#7878c0', muted:'#aaaacc' },
-    classic:  { label:'🤎', name:'클래식',  bg:'#f5f0e8', border:'#d8d0c4', text:'#2a2520', sub:'#ede7db', accent:'#8a7a60', muted:'#a09080' },
-    pink:     { label:'🩷', name:'핑크',    bg:'#fff5f8', border:'#f0cfe0', text:'#3c1830', sub:'#fde8f2', accent:'#cc6890', muted:'#e0a0bc' },
-    green:    { label:'💚', name:'그린',    bg:'#f4fbf6', border:'#c8e8d0', text:'#1a3022', sub:'#e4f5ea', accent:'#4a9060', muted:'#78b890' },
-    sky:      { label:'🩵', name:'스카이',  bg:'#f8feff', border:'#c4e8f8', text:'#143450', sub:'#edf9ff', accent:'#4890c8', muted:'#78b0d8' },
-    lavender: { label:'💜', name:'라벤더',  bg:'#f8f5ff', border:'#d8cef0', text:'#2c2448', sub:'#ede8f8', accent:'#8868c0', muted:'#b098d8' },
+async function initImports() {
+    const scriptPath   = import.meta.url;
+    const isThirdParty = scriptPath.includes('/third-party/');
+    const base  = isThirdParty ? '../../../../' : '../../../';
+    const base2 = isThirdParty ? '../../../'    : '../../';
+
+    const sm = await import(base + 'script.js');
+    getRequestHeaders     = sm.getRequestHeaders;
+    saveSettingsDebounced = sm.saveSettingsDebounced;
+    eventSource           = sm.eventSource;
+    event_types           = sm.event_types;
+
+    const om = await import(base2 + 'openai.js');
+    openai_setting_names             = om.openai_setting_names;
+    openai_settings                  = om.openai_settings;
+    oai_settings                     = om.oai_settings;
+    setupChatCompletionPromptManager = om.setupChatCompletionPromptManager;
+
+    const em = await import(base2 + 'extensions.js');
+    extension_settings = em.extension_settings;
+
+    const pm = await import(base2 + 'popup.js');
+    callGenericPopup = pm.callGenericPopup;
+    POPUP_TYPE       = pm.POPUP_TYPE;
+}
+
+// ══════════════════════════════════════════
+// A. Toggle Group Data
+// ══════════════════════════════════════════
+
+const collapsedGroups = new Set();
+let groupReorderMode  = false;
+let toggleReorderMode = null;
+
+function getTGStore() {
+    if (!extension_settings[TG_KEY]) extension_settings[TG_KEY] = { presets: {} };
+    return extension_settings[TG_KEY];
+}
+function getGroupsForPreset(pn) {
+    const s = getTGStore();
+    if (!s.presets[pn]) s.presets[pn] = [];
+    return s.presets[pn];
+}
+function saveGroups(pn, groups) {
+    getTGStore().presets[pn] = groups;
+    saveSettingsDebounced();
+}
+function getCurrentPreset() {
+    return oai_settings?.preset_settings_openai || '';
+}
+
+// ══════════════════════════════════════════
+// THEMES — ppc-popup / ppc-sub
+// ══════════════════════════════════════════
+
+const PPC_THEMES = {
+    dark: {
+        label: '🖤', title: '다크',
+        popup: { upper:'#23233a', lower:'#1a1a2e', text:'#dcdaf0', shadow:'0 6px 24px rgba(0,0,0,0.6)' },
+        sub:   { bg:'#23233a', text:'#dcdaf0' },
+        rowBorder:'rgba(255,255,255,0.08)',
+    },
+    white: {
+        label: '🤍', title: '화이트',
+        popup: { upper:'#ffffff', lower:'#f2f2f2', text:'#222222', shadow:'0 4px 18px rgba(0,0,0,0.10)' },
+        sub:   { bg:'#ffffff', text:'#222222' },
+        rowBorder:'rgba(0,0,0,0.07)',
+    },
+    classic: {
+        label: '🤎', title: '클래식',
+        popup: { upper:'#f5f0e8', lower:'#ede7db', text:'#2a2520', shadow:'0 4px 18px rgba(0,0,0,0.15)' },
+        sub:   { bg:'#f5f0e8', text:'#2a2520' },
+        rowBorder:'rgba(0,0,0,0.07)',
+    },
+    pink: {
+        label: '🩷', title: '핑크',
+        popup: { upper:'#fff7fa', lower:'#fdedf4', text:'#3c1830', shadow:'0 4px 18px rgba(200,70,110,0.09)' },
+        sub:   { bg:'#fff7fa', text:'#3c1830' },
+        rowBorder:'rgba(200,70,110,0.1)',
+    },
+    green: {
+        label: '💚', title: '그린',
+        popup: { upper:'#f4fbf6', lower:'#e4f5ea', text:'#1a3022', shadow:'0 4px 18px rgba(40,140,70,0.10)' },
+        sub:   { bg:'#f4fbf6', text:'#1a3022' },
+        rowBorder:'rgba(40,140,70,0.1)',
+    },
+    sky: {
+        label: '🩵', title: '스카이',
+        popup: { upper:'#f8feff', lower:'#edf9ff', text:'#143450', shadow:'0 4px 18px rgba(40,120,200,0.10)' },
+        sub:   { bg:'#f8feff', text:'#143450' },
+        rowBorder:'rgba(40,120,200,0.1)',
+    },
+    lavender: {
+        label: '💜', title: '라벤더',
+        popup: { upper:'#f8f5ff', lower:'#ede8f8', text:'#2c2448', shadow:'0 4px 18px rgba(120,90,200,0.14)' },
+        sub:   { bg:'#f8f5ff', text:'#2c2448' },
+        rowBorder:'rgba(120,90,200,0.1)',
+    },
 };
+// Unified On/Off colors across all themes
+const PPC_ON_BG  = '#5abf82', PPC_ON_CLR  = '#fff';
+const PPC_OFF_BG = '#bf5a5a', PPC_OFF_CLR = '#fff';
 
-function getQplTheme() {
+function getPpcTheme() {
+    return getTGStore().ppcTheme || 'classic';
+}
+function setPpcTheme(key) {
+    getTGStore().ppcTheme = key;
+    saveSettingsDebounced();
+    applyPpcTheme();
+}
+function applyPpcTheme() {
+    const key = getPpcTheme();
+    const t = PPC_THEMES[key] || PPC_THEMES.classic;
+    const popup = document.getElementById('ppc-popup');
+    if (popup) {
+        popup.style.border    = 'none';
+        popup.style.color     = t.popup.text;
+        popup.style.boxShadow = t.popup.shadow;
+        const upper = popup.querySelector('#ppc-upper');
+        const lower = popup.querySelector('#ppc-lower');
+        if (upper) upper.style.background = t.popup.upper;
+        if (lower) lower.style.background = t.popup.lower;
+    }
+    const sub = document.getElementById('ppc-sub');
+    if (sub) {
+        sub.style.background = t.sub.bg;
+        sub.style.border     = 'none';
+        sub.style.color      = t.sub.text;
+    }
+    // Apply theme to theme bar (inside popup)
+    const popup2 = document.getElementById('ppc-popup');
+    const bar = popup2 ? popup2.querySelector('#ppc-theme-bar') : null;
+    if (bar) {
+        bar.style.background = t.popup.lower;
+        bar.querySelectorAll('.ppc-theme-btn').forEach(btn => {
+            const active = btn.dataset.theme === key;
+            btn.style.background = active ? 'rgba(128,128,128,0.18)' : 'none';
+            btn.style.transform  = active ? 'scale(1.18)' : 'scale(1)';
+            btn.style.opacity    = active ? '1' : '0.45';
+        });
+    }
+}
+
+
+// ══════════════════════════════════════════
+// B. Apply group
+// ══════════════════════════════════════════
+
+function applyGroup(pn, gi) {
+    const groups = getGroupsForPreset(pn);
+    const g      = groups[gi];
+    if (!g) return;
     try {
-        const s = SillyTavern.getContext().extensionSettings[MODULE_NAME];
-        return QPL_THEMES[s?.theme] ? s.theme : 'lavender';
-    } catch { return 'lavender'; }
-}
-
-function setQplTheme(key) {
-    try {
-        SillyTavern.getContext().extensionSettings[MODULE_NAME].theme = key;
-        saveSettings();
-    } catch {}
-    applyQplTheme(key);
-}
-
-function applyQplTheme(key) {
-    const t = QPL_THEMES[key] || QPL_THEMES.lavender;
-    const menu = document.getElementById('qplMenu');
-    if (!menu) return;
-    menu.style.background = t.bg;
-    menu.style.borderColor = t.border;
-    menu.style.color = t.text;
-    // CSS 변수로 accent 설정 → .qpl-view-btn.active, .qpl-tag, .qpl-char-btn.has-data 등이 자동 적용
-    menu.style.setProperty('--qpl-accent', t.accent);
-    // header border + background
-    const header = menu.querySelector('.qpl-header');
-    if (header) {
-        header.style.borderBottomColor = t.border;
-        header.style.backgroundColor   = t.sub;
-    }
-    // 핀 버튼 active → accent 색 (CSS var 미지원 구형 방어)
-    menu.querySelectorAll('.qpl-pin-btn.active').forEach(btn => {
-        btn.style.color = t.accent;
-    });
-    // hint border
-    const hint = menu.querySelector('.qpl-hint');
-    if (hint) hint.style.borderTopColor = t.border;
-    menu.dataset.theme = key;
-    // done-btn
-    const doneBtn = menu.querySelector('.qpl-done-btn');
-    if (doneBtn) {
-        doneBtn.style.background    = t.accent + '22';
-        doneBtn.style.borderColor   = t.accent + '99';
-        doneBtn.style.color         = t.accent;
-    }
-    // theme bar buttons
-    menu.querySelectorAll('.qpl-theme-btn').forEach(btn => {
-        const active = btn.dataset.theme === key;
-        btn.style.opacity   = active ? '1' : '0.4';
-        btn.style.transform = active ? 'scale(1.2)' : 'scale(1)';
-    });
-    // active row 배경 갱신
-    menu.querySelectorAll('.qpl-row.qpl-active').forEach(row => {
-        row.style.background = t.accent + '18';
-        row.style.setProperty('--qpl-active-bar', t.accent);
-    });
-}
-
-/** @type {Popper.Instance|null} */
-let popper = null;
-let isOpen = false;
-let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
-let currentView = 'all'; // 'all' | 'fav' | 'char'
-let _allAvatars  = [];    // openMenu에서 캐시, 뷰 전환 시 재사용
-
-// ─── Settings ─────────────────────────────────────────────────────────────────
-function getSettings() {
-    const ctx = SillyTavern.getContext();
-    if (!ctx.extensionSettings[MODULE_NAME]) {
-        ctx.extensionSettings[MODULE_NAME] = { favorites: [], customOrder: null, charPersonas: {} };
-    }
-    const s = ctx.extensionSettings[MODULE_NAME];
-    if (!Array.isArray(s.favorites)) s.favorites = [];
-    if (s.customOrder !== null && !Array.isArray(s.customOrder)) s.customOrder = null;
-    if (!s.charPersonas || typeof s.charPersonas !== 'object' || Array.isArray(s.charPersonas)) s.charPersonas = {};
-    return s;
-}
-
-function saveSettings() { SillyTavern.getContext().saveSettingsDebounced(); }
-function isFavorite(id) { return getSettings().favorites.includes(id); }
-
-function toggleFavorite(avatarId) {
-    const s = getSettings();
-    const idx = s.favorites.indexOf(avatarId);
-    if (idx >= 0) {
-        s.favorites.splice(idx, 1);
-        if (Array.isArray(s.customOrder)) s.customOrder = s.customOrder.filter(id => id !== avatarId);
-    } else {
-        s.favorites.push(avatarId);
-        if (Array.isArray(s.customOrder)) s.customOrder.push(avatarId);
-    }
-    saveSettings();
-}
-
-// ─── 정렬 ─────────────────────────────────────────────────────────────────────
-function getSortedFavorites(allAvatars) {
-    const s = getSettings();
-    const favSet = new Set(s.favorites);
-    const favAvatars = allAvatars.filter(id => favSet.has(id));
-    if (Array.isArray(s.customOrder)) {
-        const order = s.customOrder;
-        return [
-            ...order.filter(id => favSet.has(id)),
-            ...favAvatars.filter(id => !order.includes(id)),
-        ];
-    }
-    // 기본: 이름순
-    return favAvatars.sort((a, b) => {
-        const na = (power_user.personas?.[a] || a).toLowerCase();
-        const nb = (power_user.personas?.[b] || b).toLowerCase();
-        return na.localeCompare(nb, 'ko');
-    });
-}
-
-function saveCustomOrder(orderIds) {
-    const s = getSettings();
-    s.customOrder = [...orderIds];
-    saveSettings();
-}
-
-// ─── 채팅 고정 ─────────────────────────────────────────────────────────────────
-function getLockedPersona() {
-    try { return SillyTavern.getContext().chatMetadata?.['persona'] ?? null; }
-    catch { return null; }
-}
-
-async function toggleChatLock(avatarId) {
-    try {
-        const ctx = SillyTavern.getContext();
-        const meta = ctx.chatMetadata;
-        if (!meta) { toastr.warning('채팅이 열려있지 않습니다.'); return; }
-        const isLocked = meta['persona'] === avatarId;
-        if (isLocked) {
-            delete meta['persona'];
-            toastr.info('채팅방 페르소나 고정을 해제했습니다.');
-        } else {
-            meta['persona'] = avatarId;
-            await setUserAvatar(avatarId);
-            toastr.success(`"${power_user.personas?.[avatarId] || avatarId}"을(를) 이 채팅방에 고정했습니다.`);
+        const pm = setupChatCompletionPromptManager(oai_settings);
+        for (const t of g.toggles) {
+            const entry = pm.getPromptOrderEntry(pm.activeCharacter, t.target);
+            if (!entry) continue;
+            const ovr = t.override ?? null;
+            entry.enabled = ovr !== null ? ovr : (t.behavior === 'invert') ? !g.isOn : g.isOn;
+            if (pm.tokenHandler?.getCounts) {
+                const counts = pm.tokenHandler.getCounts();
+                counts[t.target] = null;
+            }
         }
-        if (typeof ctx.saveMetadata === 'function') await ctx.saveMetadata();
-        updateButtonState();
-        refreshPinButtons();
-    } catch (err) {
-        console.error('[Quick-Persona-List] 채팅 고정 오류:', err);
-        toastr.error('채팅 고정에 실패했습니다.');
+        pm.render();
+        pm.saveServiceSettings();
+    } catch (e) {
+        console.warn('[PTM] applyGroup error', e);
     }
 }
 
-// 메뉴 내 모든 핀 버튼 상태 갱신
-function refreshPinButtons() {
-    const locked = getLockedPersona();
-    const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
-    $('#qplMenu .qpl-row[data-avatar]').each(function () {
-        const avatarId = $(this).attr('data-avatar');
-        const isLocked = locked === avatarId;
-        const $btn = $(this).find('.qpl-pin-btn');
-        if (!$btn.length) return;
-        $btn.toggleClass('active', isLocked)
-            .css('color', isLocked ? t.accent : '')
-            .attr('title', isLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
-            .find('i').attr('class', `fa-${isLocked ? 'solid' : 'regular'} fa-thumbtack`);
+// ══════════════════════════════════════════
+// C. Toggle Group UI
+// ══════════════════════════════════════════
+
+function renderTGGroups() {
+    const area = document.getElementById('ptm-tg-area');
+    if (!area) return;
+    const pn = getCurrentPreset();
+    if (!pn) { area.innerHTML = '<div class="ptm-ph">프리셋이 선택되지 않았습니다</div>'; return; }
+
+    // Performance: call setupChatCompletionPromptManager ONCE, extract both
+    // validIds and allPrompts. Previously buildGroupCard called it again for
+    // every card (N+1 calls per render). Now it's always exactly 1 call.
+    let validIds, allPrompts;
+    try {
+        const pm = setupChatCompletionPromptManager(oai_settings);
+        const order = (pm.serviceSettings?.prompt_order || [])
+            .find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID));
+        validIds   = new Set((order?.order || []).map(e => e.identifier));
+        allPrompts = pm.serviceSettings?.prompts || [];
+    } catch(e) {
+        const livePreset = getLivePresetData(pn) || openai_settings[openai_setting_names[pn]];
+        const order = (livePreset?.prompt_order || [])
+            .find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID));
+        validIds   = new Set((order?.order || []).map(e => e.identifier));
+        allPrompts = livePreset?.prompts || [];
+    }
+    // Use the actual prompts array as the source of truth.
+    // validIds (from prompt_order) can still contain stale entries for prompts
+    // that have already been deleted from the prompts array, so we filter
+    // against allPromptIds instead to keep toggle groups in sync.
+    const allPromptIds = new Set(allPrompts.map(p => p.identifier));
+    const groups = getGroupsForPreset(pn);
+    let changed = false;
+    groups.forEach(g => {
+        const before = g.toggles.length;
+        g.toggles = g.toggles.filter(t => allPromptIds.has(t.target));
+        if (g.toggles.length !== before) changed = true;
     });
+    if (changed) saveGroups(pn, groups);
+
+    if (!groups.length) { area.innerHTML = '<div class="ptm-ph">그룹이 없습니다</div>'; return; }
+    area.innerHTML = groups.map((g, gi) => buildGroupCard(g, gi, pn, allPrompts)).join('');
+    wireGroupCards(area);
 }
 
-// ─── 캐릭터 × 페르소나 연결 ─────────────────────────────────────────────────────
-function getCurrentCharId() {
-    try {
-        const ctx = SillyTavern.getContext();
-        return ctx.characters?.[ctx.characterId]?.avatar ?? null;
-    } catch { return null; }
-}
+// allPrompts passed in from renderTGGroups — no extra manager call needed.
+// Fallback handles any future direct callers.
+function buildGroupCard(g, gi, pn, allPrompts) {
+    if (!allPrompts) {
+        try {
+            allPrompts = setupChatCompletionPromptManager(oai_settings).serviceSettings?.prompts || [];
+        } catch(e) {
+            allPrompts = (getLivePresetData(pn) || openai_settings[openai_setting_names[pn]])?.prompts || [];
+        }
+    }
+    const inToggleReorder = toggleReorderMode === gi;
 
-function getCharPersonas(charId) {
-    if (!charId) return [];
-    const s = getSettings();
-    return Array.isArray(s.charPersonas[charId]) ? [...s.charPersonas[charId]] : [];
-}
+    const rows = g.toggles.map((t, ti) => {
+        // Bug fix: use ?? so empty-string names aren't replaced with identifier
+        const name     = allPrompts.find(p => p.identifier === t.target)?.name ?? '';
+        const isDirect = t.behavior === 'direct';
+        const ovr      = t.override ?? null;
+        const effectiveOn = ovr !== null ? ovr : (isDirect ? g.isOn : !g.isOn);
 
-function isCharPersona(charId, avatarId) {
-    return getCharPersonas(charId).includes(avatarId);
-}
+        let ovrLabel, ovrCls;
+        if (ovr === null)      { ovrLabel = '고정'; ovrCls = 'ptm-tovr-lock'; }
+        else if (ovr === true) { ovrLabel = 'On';  ovrCls = 'ptm-tovr-on';  }
+        else                   { ovrLabel = 'Off'; ovrCls = 'ptm-tovr-off'; }
 
-function toggleCharPersona(charId, avatarId) {
-    if (!charId) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
-    const s = getSettings();
-    if (!Array.isArray(s.charPersonas[charId])) s.charPersonas[charId] = [];
-    const arr = s.charPersonas[charId];
-    const idx = arr.indexOf(avatarId);
-    if (idx >= 0) arr.splice(idx, 1);
-    else arr.push(avatarId);
-    // 빈 배열이 되면 키 삭제
-    if (arr.length === 0) delete s.charPersonas[charId];
-    saveSettings();
-}
+        return `
+        <div class="ptm-trow" ${inToggleReorder ? 'data-draggable="true"' : ''} data-gi="${gi}" data-ti="${ti}">
+            ${inToggleReorder
+                ? `<span class="ptm-drag-handle" title="드래그하여 이동">⠿</span>`
+                : `<span class="ptm-tstate ${effectiveOn ? 'ptm-ts-on' : 'ptm-ts-off'}">${effectiveOn ? 'On' : 'Off'}</span>`}
+            <button class="ptm-ibtn ptm-tovr ${ovrCls}" data-gi="${gi}" data-ti="${ti}">${ovrLabel}</button>
+            <span class="ptm-tname">${name}</span>
+            ${!inToggleReorder ? `<button class="ptm-ibtn ptm-bsel ${isDirect ? 'ptm-bsel-dir' : 'ptm-bsel-inv'}" data-gi="${gi}" data-ti="${ti}">${isDirect ? '동일' : '반전'}</button>` : ''}
+            <button class="ptm-ibtn ptm-danger ptm-del-toggle" data-gi="${gi}" data-ti="${ti}">✕</button>
+        </div>`;
+    }).join('');
 
-// 캐릭터 뷰 버튼 활성 여부 갱신
-function refreshCharViewBtn() {
-    const charId = getCurrentCharId();
-    const has = charId ? getCharPersonas(charId).length > 0 : false;
-    $('#qplMenu .qpl-char-btn').toggleClass('has-data', has);
-}
+    const collapseKey = `${pn}__${gi}`;
+    const isCollapsed = collapsedGroups.has(collapseKey);
+    const toggleCount = g.toggles.length;
+    const groups      = getGroupsForPreset(pn);
+    const isFirst     = gi === 0;
+    const isLast      = gi === groups.length - 1;
 
-
-function getImageUrl(avatarId) {
-    if (supportsPersonaThumbnails) return getThumbnailUrl('persona', avatarId, true);
-    return getUserAvatar(avatarId);
-}
-
-// ─── 하단 버튼 ─────────────────────────────────────────────────────────────────
-function addQuickPersonaButton() {
-    if ($('#qplBtn').length) return;
-    const $c = $('#leftSendForm').length ? $('#leftSendForm')
-        : $('#send_form').length ? $('#send_form')
-        : $('form#send_form, .sendForm, #form_sheld').first();
-    if (!$c.length) { setTimeout(addQuickPersonaButton, 1000); return; }
-    $c.append(`
-        <div id="qplBtn" tabindex="0" title="페르소나 목록 열기">
-            <img id="qplBtnImg" src="/img/ai4.png" alt="persona" />
+    return `
+    <div class="ptm-card" data-gi="${gi}">
+        <div class="ptm-card-head">
+            ${groupReorderMode ? `
+                <button class="ptm-ibtn ptm-grp-up${isFirst ? ' ptm-arr-disabled' : ''}" data-gi="${gi}" ${isFirst ? 'disabled' : ''}>▲</button>
+                <button class="ptm-ibtn ptm-grp-dn${isLast  ? ' ptm-arr-disabled' : ''}" data-gi="${gi}" ${isLast  ? 'disabled' : ''}>▼</button>
+            ` : `<button class="ptm-onoff ${g.isOn ? 'ptm-onoff-on' : 'ptm-onoff-off'}" data-gi="${gi}">${g.isOn ? 'On' : 'Off'}</button>`}
+            <span class="ptm-gname">${g.name} <span class="ptm-gcnt">(${toggleCount})</span></span>
+            <div class="ptm-gbtns">
+                ${!groupReorderMode && !inToggleReorder && !isCollapsed ? `<button class="ptm-ibtn ptm-ren-grp" data-gi="${gi}">✏️</button>` : ''}
+                ${!groupReorderMode && !inToggleReorder && !isCollapsed ? `<button class="ptm-ibtn ptm-reorder-grp-btn" data-gi="${gi}" title="토글 순서 변경">⠿</button>` : ''}
+                ${!groupReorderMode && !inToggleReorder ? `<button class="ptm-ibtn ptm-popup-pin${g.showInPopup ? ' ptm-pin-active' : ''}" data-gi="${gi}" title="미니창에 표시" style="${g.showInPopup ? 'opacity:1;background:rgba(160,144,232,0.25);color:#b0a0f0;' : 'opacity:0.35;'}">📌</button>` : ''}
+                ${!groupReorderMode && !inToggleReorder ? `<button class="ptm-ibtn ptm-danger ptm-del-grp" data-gi="${gi}">✕</button>` : ''}
+                ${inToggleReorder ? `<button class="ptm-ibtn ptm-toggle-reorder-done" data-gi="${gi}" style="color:#6ddb9e">✓</button>` : ''}
+                <button class="ptm-ibtn ptm-collapse-grp" data-gi="${gi}" data-cpkey="${collapseKey}" title="${isCollapsed ? '펼치기' : '접기'}">${isCollapsed ? '▸' : '▾'}</button>
+            </div>
         </div>
-    `);
-    $('#qplBtn').on('click', () => toggleMenu());
+        <div class="ptm-tlist${isCollapsed ? ' ptm-hidden' : ''}">
+            ${rows || '<div class="ptm-ph" style="padding:6px;font-size:11px">토글 없음</div>'}
+        </div>
+        ${!groupReorderMode ? `<button class="ptm-sm ptm-add-toggle${isCollapsed ? ' ptm-hidden' : ''}" data-gi="${gi}" style="width:calc(100% - 12px);margin:2px 6px;box-sizing:border-box;">+ 토글 추가</button>` : ''}
+    </div>`;
 }
 
-// [fix-7] setTimeout 중복 누적 방지: debounce 패턴으로 교체
-let _updateButtonTimer = null;
-function updateButtonState() {
-    clearTimeout(_updateButtonTimer);
-    _updateButtonTimer = setTimeout(() => {
-        const name  = power_user.personas?.[user_avatar] || user_avatar;
-        const title = power_user.persona_descriptions?.[user_avatar]?.title || '';
-        const url   = getImageUrl(user_avatar);
-        $('#qplBtnImg').attr('src', url).attr('title', title ? `${name} — ${title}` : name);
-        const locked = getLockedPersona();
-        $('#qplBtn').toggleClass('qpl-locked', !!locked && locked === user_avatar);
-    }, 100);
+function wireGroupCards(area) {
+    area.querySelectorAll('.ptm-grp-up').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        if (gi === 0) return;
+        [gs[gi-1], gs[gi]] = [gs[gi], gs[gi-1]];
+        saveGroups(pn, gs); renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-grp-dn').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        if (gi >= gs.length - 1) return;
+        [gs[gi], gs[gi+1]] = [gs[gi+1], gs[gi]];
+        saveGroups(pn, gs); renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-reorder-grp-btn').forEach(btn => btn.addEventListener('click', () => {
+        toggleReorderMode = +btn.dataset.gi;
+        renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-toggle-reorder-done').forEach(btn => btn.addEventListener('click', () => {
+        toggleReorderMode = null;
+        renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-collapse-grp').forEach(btn => btn.addEventListener('click', () => {
+        const cpkey = btn.dataset.cpkey;
+        if (collapsedGroups.has(cpkey)) collapsedGroups.delete(cpkey);
+        else collapsedGroups.add(cpkey);
+        renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-onoff').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        gs[gi].isOn = !gs[gi].isOn;
+        applyGroup(pn, gi);
+        saveGroups(pn, gs);
+        renderTGGroups();
+        refreshPpcPopup();
+        // 서브창이 같은 gi로 열려있으면 다시 렌더링
+        const sub = document.getElementById('ppc-sub');
+        if (sub && sub.style.display !== 'none' && ppcSubGi === gi) {
+            sub.innerHTML = buildPpcSubHtml(gi);
+            wirePpcSub(sub, gi);
+            requestAnimationFrame(() => positionPpcSub(sub));
+        }
+    }));
+    area.querySelectorAll('.ptm-tovr').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, ti = +btn.dataset.ti, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        const cur = gs[gi].toggles[ti].override ?? null;
+        gs[gi].toggles[ti].override = cur === null ? true : cur === true ? false : null;
+        applyGroup(pn, gi);
+        saveGroups(pn, gs);
+        renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-ren-grp').forEach(btn => btn.addEventListener('click', async () => {
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        const n = await callGenericPopup('그룹 이름 변경:', POPUP_TYPE.INPUT, gs[gi].name);
+        if (!n?.trim()) return;
+        gs[gi].name = n.trim(); saveGroups(pn, gs); renderTGGroups(); refreshPpcPopup();
+    }));
+    area.querySelectorAll('.ptm-del-grp').forEach(btn => btn.addEventListener('click', async () => {
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        const ok = await callGenericPopup(`"${gs[gi].name}" 그룹을 삭제할까요?`, POPUP_TYPE.CONFIRM);
+        if (!ok) return;
+        gs.splice(gi, 1); saveGroups(pn, gs); renderTGGroups(); refreshPpcPopup();
+    }));
+    area.querySelectorAll('.ptm-bsel').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, ti = +btn.dataset.ti, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        gs[gi].toggles[ti].behavior = gs[gi].toggles[ti].behavior === 'direct' ? 'invert' : 'direct';
+        saveGroups(pn, gs); renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-del-toggle').forEach(btn => btn.addEventListener('click', () => {
+        const gi = +btn.dataset.gi, ti = +btn.dataset.ti, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        gs[gi].toggles.splice(ti, 1); saveGroups(pn, gs); renderTGGroups();
+    }));
+    area.querySelectorAll('.ptm-add-toggle').forEach(btn => btn.addEventListener('click', () => {
+        showAddToggleModal(+btn.dataset.gi);
+    }));
+    // 팝업 핀 토글 버튼
+    area.querySelectorAll('button.ptm-popup-pin').forEach(btn => btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const gi = +btn.dataset.gi, pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+        gs[gi].showInPopup = !gs[gi].showInPopup;
+        saveGroups(pn, gs);
+        refreshPpcPopup();
+        renderTGGroups();
+    }));
 }
 
-async function toggleMenu() {
-    if (isOpen) closeMenu(); else await openMenu();
+// ── Add toggle modal ──────────────────────────────────────────────────────────
+async function showAddToggleModal(gi) {
+    const pn = getCurrentPreset(), preset = getLivePresetData(pn);
+    if (!preset) return;
+    const gs = getGroupsForPreset(pn), exists = new Set(gs[gi].toggles.map(t => t.target));
+    const prompts = preset.prompts || [];
+    const selectedMap = new Map();
+
+    const listHtml = prompts.map((p, idx) => {
+        const ex = exists.has(p.identifier);
+        return `<label style="display:flex;align-items:center;gap:8px;padding:7px 4px;cursor:${ex ? 'default' : 'pointer'};opacity:${ex ? '0.45' : '1'}">
+            <input type="checkbox" class="ptm-add-cb" data-i="${idx}" data-id="${p.identifier}" ${ex ? 'disabled checked' : ''}
+                style="width:16px;height:16px;accent-color:#7a6fff;flex-shrink:0;cursor:pointer">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name ?? ''}</span>
+            ${ex ? '<span style="font-size:10px;padding:1px 5px;border-radius:8px;background:rgba(120,100,255,.25);color:#a89fff;flex-shrink:0">추가됨</span>' : ''}
+        </label>`;
+    }).join('');
+
+    const html = `
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+            <button id="ptm-mall"   class="ptm-sm" style="margin:0">전체</button>
+            <button id="ptm-mnone"  class="ptm-sm" style="margin:0">해제</button>
+            <button id="ptm-mrange" class="ptm-sm" style="margin:0">연속</button>
+        </div>
+        <div id="ptm-mlist" style="max-height:45vh;overflow-y:auto">${listHtml}</div>`;
+
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('.ptm-add-cb:not(:disabled)').forEach(cb => {
+            if (cb._ptmWired) return;
+            cb._ptmWired = true;
+            cb.addEventListener('change', () => {
+                if (cb.checked) selectedMap.set(+cb.dataset.i, cb.dataset.id);
+                else selectedMap.delete(+cb.dataset.i);
+            });
+        });
+        const mallBtn = document.getElementById('ptm-mall');
+        if (mallBtn && !mallBtn._ptmWired) {
+            mallBtn._ptmWired = true;
+            mallBtn.addEventListener('click', () => {
+                document.querySelectorAll('.ptm-add-cb:not(:disabled)').forEach(cb => {
+                    cb.checked = true; selectedMap.set(+cb.dataset.i, cb.dataset.id);
+                });
+            });
+        }
+        const mnoneBtn = document.getElementById('ptm-mnone');
+        if (mnoneBtn && !mnoneBtn._ptmWired) {
+            mnoneBtn._ptmWired = true;
+            mnoneBtn.addEventListener('click', () => {
+                document.querySelectorAll('.ptm-add-cb:not(:disabled)').forEach(cb => {
+                    cb.checked = false; selectedMap.delete(+cb.dataset.i);
+                });
+            });
+        }
+        const mrangeBtn = document.getElementById('ptm-mrange');
+        if (mrangeBtn && !mrangeBtn._ptmWired) {
+            mrangeBtn._ptmWired = true;
+            mrangeBtn.addEventListener('click', () => {
+                if (selectedMap.size < 2) { toastr.warning('시작과 끝 항목 2개를 선택하세요'); return; }
+                const idxs = [...selectedMap.keys()].sort((a, b) => a - b);
+                const mn = idxs[0], mx = idxs[idxs.length - 1];
+                document.querySelectorAll('.ptm-add-cb:not(:disabled)').forEach(cb => {
+                    const i = +cb.dataset.i;
+                    if (i >= mn && i <= mx) { cb.checked = true; selectedMap.set(i, cb.dataset.id); }
+                });
+            });
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    const ok = await callGenericPopup(html, POPUP_TYPE.CONFIRM, '', { okButton: '추가', cancelButton: '취소' });
+    observer.disconnect();
+
+    if (!ok) return;
+    if (!selectedMap.size) { toastr.warning('추가할 항목을 선택하세요'); return; }
+    const gs2 = getGroupsForPreset(pn);
+    selectedMap.forEach(id => gs2[gi].toggles.push({ target: id, behavior: 'direct', override: null }));
+    saveGroups(pn, gs2); renderTGGroups();
+    toastr.success(`${selectedMap.size}개 추가됨`);
 }
 
-async function openMenu() {
-    if (_isOpening) return;
-    _isOpening = true;
-    isOpen = true;
-    currentView = 'all';
+// ══════════════════════════════════════════
+// D. Mover helpers
+// ══════════════════════════════════════════
 
-    $('#qplMenu').stop(true, true).remove();
-    if (popper) { popper.destroy(); popper = null; }
+let sourcePresetName = '', targetPresetName = '', sourceOrderedPrompts = [],
+    targetOrderedPrompts = [], selectedSourceIndices = new Set(), insertPosition = -1;
 
-    try {
-        _allAvatars = await getUserAvatars(false);
-        const s       = getSettings();
-        const hasFavs = s.favorites.length > 0;
-        const charId  = getCurrentCharId();
-        const charPs  = getCharPersonas(charId);
+function getPromptOrder(preset) {
+    if (!preset?.prompt_order) return [];
+    return preset.prompt_order.find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID))?.order || [];
+}
+function getOrderedPrompts(preset) {
+    const prompts = preset?.prompts || [];
+    // Only include entries that still exist in the prompts array.
+    // Deleted prompts linger in prompt_order but have no definition —
+    // filter them out entirely so the copy/move list stays clean.
+    return getPromptOrder(preset)
+        .map(e => {
+            const def = prompts.find(p => p.identifier === e.identifier);
+            if (!def) return null;
+            return { identifier: e.identifier, enabled: e.enabled, prompt: def };
+        })
+        .filter(Boolean);
+}
+function getLivePresetData(presetName) {
+    if (!presetName) return null;
+    if (presetName === getCurrentPreset()) return oai_settings;
+    return openai_settings[openai_setting_names[presetName]];
+}
+async function savePreset(name, preset) {
+    const r = await fetch('/api/presets/save', { method: 'POST', headers: getRequestHeaders(), body: JSON.stringify({ apiId: 'openai', name, preset }) });
+    if (!r.ok) throw new Error('프리셋 저장 실패');
+    return r.json();
+}
+function getPresetOptions() {
+    if (!openai_settings || !openai_setting_names) return '<option value="">-- 프리셋 없음 --</option>';
+    return '<option value="">-- 선택 --</option>'
+        + Object.keys(openai_setting_names).filter(n => openai_settings[openai_setting_names[n]])
+            .map(n => `<option value="${n}">${n}</option>`).join('');
+}
 
-        const curTheme = getQplTheme();
-        const initT    = QPL_THEMES[curTheme] || QPL_THEMES.lavender;
+// ══════════════════════════════════════════
+// E. Build drawers
+// ══════════════════════════════════════════
 
-        const $menu = $(`
-            <div id="qplMenu" style="--qpl-accent:${initT.accent}">
-                <div class="qpl-header">
-                    <span class="qpl-header-title">🎭 페르소나Q</span>
-                    <div class="qpl-header-actions">
-                        <button class="qpl-view-btn qpl-all-btn active" title="전체 목록">
-                            <i class="fa-solid fa-masks-theater"></i>
-                        </button>
-                        <button class="qpl-view-btn qpl-fav-btn" title="즐겨찾기 목록">
-                            <i class="fa-solid fa-star"></i>
-                        </button>
-                        <button class="qpl-view-btn qpl-char-btn${charPs.length ? ' has-data' : ''}" title="캐릭터 전용 페르소나">
-                            <i class="fa-solid fa-user"></i>
-                        </button>
-                        <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
-                        ${hasFavs ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
+function buildMoverDrawer() {
+    const presets = getPresetOptions();
+    const el = document.createElement('div');
+    el.id = 'ptm-mover-drawer';
+    el.innerHTML = `
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>토글 복사/이동</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div class="ptm-block">
+                <label class="ptm-label">① 출발 프리셋</label>
+                <select id="ptm-src" class="ptm-sel">${presets}</select>
+            </div>
+            <div class="ptm-block">
+                <div class="ptm-lrow">
+                    <label class="ptm-label">② 이동할 항목</label>
+                    <div>
+                        <button class="ptm-sm" id="ptm-all">전체</button>
+                        <button class="ptm-sm" id="ptm-none">해제</button>
+                        <button class="ptm-sm" id="ptm-range">연속</button>
                     </div>
                 </div>
-                <div class="qpl-theme-bar" style="display:none;"></div>
-                <div class="qpl-list"></div>
+                <div id="ptm-src-list" class="ptm-list"><div class="ptm-ph">출발 프리셋을 선택하세요</div></div>
             </div>
-        `);
-
-        // 초기 전체 뷰 렌더
-        renderList($menu.find('.qpl-list'), _allAvatars, false);
-        // 테마 바 구성
-        const $bar = $menu.find('.qpl-theme-bar');
-        Object.entries(QPL_THEMES).forEach(([key, t]) => {
-            const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
-                style="border:none;background:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:6px;transition:transform 0.1s,opacity 0.1s;opacity:${key===curTheme?'1':'0.4'};transform:${key===curTheme?'scale(1.2)':'scale(1)'};">${t.label}</button>`);
-            $btn.on('click', e => { e.stopPropagation(); setQplTheme(key); if (popper) popper.update(); });
-            $bar.append($btn);
-        });
-
-        // 테마 토글
-        $menu.find('.qpl-theme-toggle-btn').on('click', e => {
-            e.stopPropagation();
-            $menu.find('.qpl-theme-bar').toggle();
-            requestAnimationFrame(() => { if (popper) popper.update(); });
-        });
-
-        // 🎭 전체 목록 버튼
-        $menu.find('.qpl-all-btn').on('click', e => {
-            e.stopPropagation();
-            if (currentView === 'all') return;
-            currentView = 'all';
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find('.qpl-all-btn').addClass('active');
-            $menu.find('.qpl-hint').hide();
-            renderList($menu.find('.qpl-list'), _allAvatars, false);
-            requestAnimationFrame(() => { if (popper) popper.update(); });
-        });
-
-        // ⭐ 즐겨찾기 뷰 버튼
-        $menu.find('.qpl-fav-btn').on('click', e => {
-            e.stopPropagation();
-            if (currentView === 'fav') return;
-            currentView = 'fav';
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find('.qpl-fav-btn').addClass('active');
-            applyQplTheme(getQplTheme());
-            // 클릭 시점에 즐겨찾기 상태 재확인
-            const curFavs = getSettings().favorites.length > 0;
-            $menu.find('.qpl-edit-btn').toggle(curFavs);
-            if (curFavs) {
-                renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
-            } else {
-                $menu.find('.qpl-list').html(`
-                    <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
-                        <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
-                        즐겨찾기한 페르소나가 없어요.<br>
-                        <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
-                    </div>
-                `);
-            }
-        });
-
-        // 👤 캐릭터 뷰 버튼
-        $menu.find('.qpl-char-btn').on('click', e => {
-            e.stopPropagation();
-            if (currentView === 'char') return;
-            currentView = 'char';
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find('.qpl-char-btn').addClass('active');
-            // 편집 버튼: 캐릭터 페르소나 있을 때만
-            const cid = getCurrentCharId();
-            $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
-            renderCharView($menu.find('.qpl-list'), cid);
-            requestAnimationFrame(() => { if (popper) popper.update(); });
-        });
-
-        // 🎭 전체 뷰로 돌아올 때 편집 버튼 숨김
-        $menu.find('.qpl-all-btn').on('click', e => {
-            // 이미 핸들러 있지만 edit-btn 토글 추가
-            $menu.find('.qpl-edit-btn').hide();
-        });
-
-        // 순서 편집
-        $menu.find('.qpl-edit-btn').on('click', e => {
-            e.stopPropagation();
-            enterEditMode(_allAvatars);
-        });
-        // 전체 탭이 기본이므로 편집 버튼 숨김
-        $menu.find('.qpl-edit-btn').hide();
-
-        $menu.css({ visibility: 'hidden', display: 'block' });
-        $(document.body).append($menu);
-
-        popper = Popper.createPopper(
-            document.getElementById('qplBtn'),
-            document.getElementById('qplMenu'),
-            {
-                placement: 'top',
-                modifiers: [
-                    { name: 'offset', options: { offset: [0, 6] } },
-                    { name: 'preventOverflow', options: { padding: 8 } },
-                    { name: 'flip', options: { fallbackPlacements: ['top-start', 'top-end'] } },
-                ],
-            },
-        );
-        await popper.update();
-
-        $menu.css({ visibility: '', display: 'none' }).fadeIn(animation_duration);
-        requestAnimationFrame(() => applyQplTheme(getQplTheme()));
-    } finally {
-        _isOpening = false;
-    }
-}
-
-function closeMenu() {
-    if (!isOpen) return;
-    isOpen = false;
-
-    // 드래그 중 메뉴가 닫히면 body에 남은 ghost 정리
-    $(document.body).children('.qpl-dragging').remove();
-
-    $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
-    if (popper) { popper.destroy(); popper = null; }
-}
-
-// ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
-function renderList($list, listIds, editMode) {
-    $list.empty();
-    listIds.forEach(id => $list.append(createRow(id, editMode)));
-}
-
-// ─── 캐릭터 뷰 렌더 ────────────────────────────────────────────────────────────
-function renderCharView($list, charId) {
-    $list.empty();
-    const personaIds = getCharPersonas(charId);
-    if (!charId || personaIds.length === 0) {
-        $list.html(`
-            <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
-                <i class="fa-solid fa-user" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
-                이 캐릭터에 연결된 페르소나가 없어요.<br>
-                <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 👤를 눌러 연결하세요.</span>
+            <div class="ptm-block">
+                <label class="ptm-label">③ 도착 프리셋</label>
+                <select id="ptm-dst" class="ptm-sel">${presets}</select>
             </div>
-        `);
+            <div class="ptm-block">
+                <label class="ptm-label">④ 삽입 위치 (+ 클릭)</label>
+                <div id="ptm-dst-list" class="ptm-list"><div class="ptm-ph">도착 프리셋을 선택하세요</div></div>
+            </div>
+            <div class="ptm-block ptm-gblock">
+                <label class="ptm-grow">
+                    <input type="checkbox" id="ptm-make-group">
+                    <span>복사/이동 후 토글 그룹으로 묶기</span>
+                </label>
+                <div id="ptm-gname-row" class="ptm-hidden">
+                    <input type="text" id="ptm-gname" class="ptm-tinput" style="margin-top:6px" placeholder="그룹 이름 입력...">
+                </div>
+            </div>
+            <div id="ptm-info" class="ptm-info">항목과 위치를 선택하면 버튼이 활성화됩니다</div>
+            <div class="ptm-brow">
+                <button id="ptm-copy" class="ptm-btn ptm-btn-copy" disabled>복사</button>
+                <button id="ptm-move" class="ptm-btn ptm-btn-move" disabled>이동</button>
+            </div>
+        </div>
+    </div>`;
+    return el;
+}
+
+function buildTGDrawer() {
+    const el = document.createElement('div');
+    el.id = 'ptm-tg-drawer';
+    el.innerHTML = `
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>토글 그룹 관리</b>
+            <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div id="ptm-tg-area"><div class="ptm-ph">로딩 중...</div></div>
+            <div style="display:flex;gap:6px;margin-top:0;align-items:center">
+                <button class="ptm-sm ptm-sm-full" id="ptm-add-group" style="flex:1;margin:0">+ 그룹 추가</button>
+                <button class="ptm-sm" id="ptm-reorder-btn" style="margin:0;padding:3px 10px;min-width:36px;text-align:center" title="그룹 순서 변경">⠿</button>
+            </div>
+        </div>
+    </div>`;
+    return el;
+}
+
+// ══════════════════════════════════════════
+// F. Render mover
+// ══════════════════════════════════════════
+
+function renderSrcList() {
+    if (sourcePresetName) sourceOrderedPrompts = getOrderedPrompts(getLivePresetData(sourcePresetName));
+    const el = document.getElementById('ptm-src-list'); if (!el) return;
+    if (!sourceOrderedPrompts.length) { el.innerHTML = '<div class="ptm-ph">프롬프트 없음</div>'; return; }
+    el.innerHTML = sourceOrderedPrompts.map((e, i) => {
+        const name = e.prompt.name ?? '', chk = selectedSourceIndices.has(i);
+        return `<label class="ptm-item${!e.enabled ? ' ptm-item-off' : ''}${chk ? ' ptm-chked' : ''}">
+            <input type="checkbox" class="ptm-chk" data-i="${i}"${chk ? ' checked' : ''}><span class="ptm-num">#${i + 1}</span>
+            <span class="ptm-name">${e.prompt.marker ? '[고정] ' : ''}${name}</span></label>`;
+    }).join('');
+    el.querySelectorAll('.ptm-chk').forEach(cb => cb.addEventListener('change', ev => {
+        const i = +ev.target.dataset.i;
+        if (ev.target.checked) { selectedSourceIndices.add(i); ev.target.closest('.ptm-item').classList.add('ptm-chked'); }
+        else { selectedSourceIndices.delete(i); ev.target.closest('.ptm-item').classList.remove('ptm-chked'); }
+        updateButtons();
+    }));
+}
+
+function renderDstList() {
+    if (targetPresetName) targetOrderedPrompts = getOrderedPrompts(getLivePresetData(targetPresetName));
+    const el = document.getElementById('ptm-dst-list'); if (!el) return;
+    const slot = i => `<div class="ptm-slot${insertPosition === i ? ' ptm-slot-on' : ''}" data-slot="${i}">+</div>`;
+    if (!targetOrderedPrompts.length) {
+        el.innerHTML = slot(0);
+        el.querySelector('.ptm-slot').addEventListener('click', () => selectSlot(0));
         return;
     }
-    personaIds.forEach(id => $list.append(createRow(id, false)));
+    el.innerHTML = slot(0) + targetOrderedPrompts.map((e, i) => {
+        // Bug fix: use ?? for name
+        const name = e.prompt.name ?? '';
+        return `<div class="ptm-ditem${!e.enabled ? ' ptm-item-off' : ''}"><span class="ptm-num">#${i + 1}</span>
+            <span class="ptm-name">${e.prompt.marker ? '[고정] ' : ''}${name}</span></div>${slot(i + 1)}`;
+    }).join('');
+    el.querySelectorAll('.ptm-slot').forEach(s => s.addEventListener('click', () => selectSlot(+s.dataset.slot)));
 }
 
-// ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
-function enterEditMode(allAvatars) {
-    const charId  = getCurrentCharId();
-    const isChar  = currentView === 'char';
-    const listIds = isChar ? getCharPersonas(charId) : getSortedFavorites(allAvatars);
+function selectSlot(s) { insertPosition = s; renderDstList(); updateButtons(); }
 
-    const $menu   = $('#qplMenu');
-    const $header = $menu.find('.qpl-header');
-    $header.html(`
-        <span class="qpl-header-title">
-            <i class="fa-solid fa-grip-lines"></i> 순서 편집
-        </span>
-        <button class="qpl-done-btn">
-            <i class="fa-solid fa-check"></i> 편집 완료
-        </button>
-    `);
-    // done-btn에 테마 accent 색 즉시 적용
-    requestAnimationFrame(() => applyQplTheme(getQplTheme()));
-
-    const $list = $menu.find('.qpl-list');
-    renderList($list, listIds, true);
-    setupTouchDrag($list);
-
-    $header.find('.qpl-done-btn').on('click', e => {
-        e.stopPropagation();
-        const newOrder = [];
-        $list.find('.qpl-row[data-avatar]').each(function () {
-            newOrder.push($(this).attr('data-avatar'));
-        });
-        if (isChar && charId) {
-            // 캐릭터 탭 순서 저장
-            const s = getSettings();
-            s.charPersonas[charId] = newOrder;
-            saveSettings();
-        } else {
-            saveCustomOrder(newOrder);
-        }
-        exitEditMode(allAvatars);
-    });
-
-    if (popper) popper.update();
+function updateButtons() {
+    const n = selectedSourceIndices.size, ok = sourcePresetName && targetPresetName && n > 0 && insertPosition >= 0;
+    document.getElementById('ptm-copy').disabled = !ok;
+    document.getElementById('ptm-move').disabled = !ok;
+    const info = document.getElementById('ptm-info'); if (!info) return;
+    if (!sourcePresetName) info.textContent = '출발 프리셋을 선택하세요';
+    else if (!n) info.textContent = '이동할 항목을 체크하세요';
+    else if (!targetPresetName) info.textContent = `${n}개 선택됨 · 도착 프리셋을 선택하세요`;
+    else if (insertPosition < 0) info.textContent = `${n}개 선택됨 · 삽입 위치(+)를 클릭하세요`;
+    else if (sourcePresetName === targetPresetName) info.textContent = `${n}개 선택 · 같은 프리셋 내 순서 변경`;
+    else info.textContent = `${n}개 선택 · 복사 또는 이동 클릭`;
 }
 
-function exitEditMode(allAvatars) {
-    const listIds = getSortedFavorites(allAvatars);
-    const charId  = getCurrentCharId();
-    const charPs  = getCharPersonas(charId);
-    const s       = getSettings();
-    const hasFavs = s.favorites.length > 0;
+// ══════════════════════════════════════════
+// G. Perform copy/move
+// ══════════════════════════════════════════
 
-    const $menu   = $('#qplMenu');
-    const $header = $menu.find('.qpl-header');
+async function performOperation(isMove) {
+    const n = selectedSourceIndices.size;
+    if (!sourcePresetName || !targetPresetName || !n || insertPosition < 0) return;
+    const makeGroup = document.getElementById('ptm-make-group')?.checked;
+    const groupName = document.getElementById('ptm-gname')?.value.trim();
+    if (makeGroup && !groupName) { toastr.warning('그룹 이름을 입력해주세요'); document.getElementById('ptm-gname')?.focus(); return; }
 
-    $header.html(`
-        <span class="qpl-header-title">🎭 페르소나Q</span>
-        <div class="qpl-header-actions">
-            <button class="qpl-view-btn qpl-all-btn${currentView === 'all' ? ' active' : ''}" title="전체 목록">
-                <i class="fa-solid fa-masks-theater"></i>
-            </button>
-            <button class="qpl-view-btn qpl-fav-btn${currentView === 'fav' ? ' active' : ''}" title="즐겨찾기 목록">
-                <i class="fa-solid fa-star"></i>
-            </button>
-            <button class="qpl-view-btn qpl-char-btn${charPs.length ? ' has-data' : ''}${currentView === 'char' ? ' active' : ''}" title="캐릭터 전용 페르소나">
-                <i class="fa-solid fa-user"></i>
-            </button>
-            <button class="qpl-theme-toggle-btn" title="테마 선택">🤍</button>
-            ${hasFavs || charPs.length ? `<button class="qpl-edit-btn" title="순서 편집"><i class="fa-solid fa-sort"></i></button>` : ''}
-        </div>
-    `);
+    if (isMove && sourcePresetName === targetPresetName) { await performSamePresetMove(n, makeGroup, groupName); return; }
 
-    $header.find('.qpl-theme-toggle-btn').on('click', e => {
-        e.stopPropagation();
-        $menu.find('.qpl-theme-bar').toggle();
-        requestAnimationFrame(() => { if (popper) popper.update(); });
+    const srcIdx = openai_setting_names[sourcePresetName], dstIdx = openai_setting_names[targetPresetName];
+    const selected = [...selectedSourceIndices].sort((a, b) => a - b).map(i => sourceOrderedPrompts[i]).filter(Boolean);
+    const tp = JSON.parse(JSON.stringify(openai_settings[dstIdx]));
+    tp.prompts = tp.prompts || []; tp.prompt_order = tp.prompt_order || [];
+    const existingIds = new Set(tp.prompts.map(p => p.identifier)), newIds = [];
+    selected.forEach((entry, offset) => {
+        const pd = JSON.parse(JSON.stringify(entry.prompt));
+        let id = pd.identifier;
+        if (existingIds.has(id)) { let c = 1, base = id.replace(/_\d+$/, ''); while (existingIds.has(`${base}_${c}`)) c++; id = `${base}_${c}`; pd.identifier = id; pd.name = `${pd.name || entry.identifier} (${c})`; }
+        existingIds.add(id); newIds.push(id); tp.prompts.push(pd);
+        const go = tp.prompt_order.find(o => String(o.character_id) === String(GLOBAL_DUMMY_ID));
+        if (go?.order) go.order.splice(insertPosition + offset, 0, { identifier: id, enabled: true });
+        else tp.prompt_order.push({ character_id: GLOBAL_DUMMY_ID, order: [{ identifier: id, enabled: true }] });
+        for (const oe of tp.prompt_order) if (String(oe.character_id) !== String(GLOBAL_DUMMY_ID) && oe.order) oe.order.push({ identifier: id, enabled: true });
     });
-    $header.find('.qpl-all-btn').on('click', e => {
-        e.stopPropagation();
-        if (currentView === 'all') return;
-        currentView = 'all';
-        $menu.find('.qpl-view-btn').removeClass('active');
-        $header.find('.qpl-all-btn').addClass('active');
-        $menu.find('.qpl-edit-btn').hide();
-        renderList($menu.find('.qpl-list'), _allAvatars, false);
-        requestAnimationFrame(() => { if (popper) popper.update(); });
-    });
-    $header.find('.qpl-fav-btn').on('click', e => {
-        e.stopPropagation();
-        if (currentView === 'fav') return;
-        currentView = 'fav';
-        $menu.find('.qpl-view-btn').removeClass('active');
-        $header.find('.qpl-fav-btn').addClass('active');
-        applyQplTheme(getQplTheme());
-        const curFavs = getSettings().favorites.length > 0;
-        $menu.find('.qpl-edit-btn').toggle(curFavs);
-        if (curFavs) {
-            renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
-        } else {
-            $menu.find('.qpl-list').html(`
-                <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
-                    <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
-                    즐겨찾기한 페르소나가 없어요.<br>
-                    <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
-                </div>
-            `);
+    try {
+        await savePreset(targetPresetName, tp); openai_settings[dstIdx] = tp;
+        if (isMove && sourcePresetName !== targetPresetName) {
+            const sp = JSON.parse(JSON.stringify(openai_settings[srcIdx])), rem = new Set(selected.map(e => e.identifier));
+            sp.prompts = sp.prompts.filter(p => !rem.has(p.identifier));
+            if (sp.prompt_order) for (const o of sp.prompt_order) if (o.order) o.order = o.order.filter(e => !rem.has(e.identifier));
+            await savePreset(sourcePresetName, sp); openai_settings[srcIdx] = sp;
+            if (sourcePresetName === getCurrentPreset()) { oai_settings.prompts = sp.prompts; oai_settings.prompt_order = sp.prompt_order; }
         }
-    });
-    $header.find('.qpl-char-btn').on('click', e => {
-        e.stopPropagation();
-        if (currentView === 'char') return;
-        currentView = 'char';
-        $menu.find('.qpl-view-btn').removeClass('active');
-        $header.find('.qpl-char-btn').addClass('active');
-        const cid = getCurrentCharId();
-        $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
-        renderCharView($menu.find('.qpl-list'), cid);
-        requestAnimationFrame(() => { if (popper) popper.update(); });
-    });
-    $header.find('.qpl-edit-btn').on('click', e => {
-        e.stopPropagation();
-        enterEditMode(allAvatars);
-    });
+        if (targetPresetName === getCurrentPreset()) { oai_settings.prompts = tp.prompts; oai_settings.prompt_order = tp.prompt_order; }
+        if (makeGroup && groupName) {
+            const gs = getGroupsForPreset(targetPresetName); let fn = groupName, c = 1;
+            while (gs.some(g => g.name === fn)) fn = `${groupName} (${c++})`;
+            gs.push({ name: fn, isOn: false, toggles: newIds.map(id => ({ target: id, behavior: 'direct', override: null })) });
+            saveGroups(targetPresetName, gs);
+            renderTGGroups();
+            toastr.success(`${n}개 ${isMove ? '이동' : '복사'} 완료 + 그룹 "${fn}" 생성!`);
+        } else toastr.success(`${n}개 ${isMove ? '이동' : '복사'} 완료`);
+        selectedSourceIndices.clear(); insertPosition = -1;
+        const cb = document.getElementById('ptm-make-group'); if (cb) cb.checked = false;
+        document.getElementById('ptm-gname-row')?.classList.add('ptm-hidden');
+        const gi = document.getElementById('ptm-gname'); if (gi) gi.value = '';
+        renderSrcList(); renderDstList(); updateButtons();
+        try { setupChatCompletionPromptManager(oai_settings).render(); } catch(e) { console.warn('[PTM] PM refresh failed', e); }
+    } catch(err) { console.error('[PTM]', err); toastr.error('실패: ' + err.message); }
+}
 
-    applyQplTheme(getQplTheme());
+async function performSamePresetMove(n, makeGroup, groupName) {
+    const srcIdx = openai_setting_names[sourcePresetName];
+    const selected = [...selectedSourceIndices].sort((a, b) => a - b).map(i => sourceOrderedPrompts[i]).filter(Boolean);
+    const selectedSet = new Set(selected.map(e => e.identifier));
+    const sp = JSON.parse(JSON.stringify(openai_settings[srcIdx]));
 
-    const $list = $menu.find('.qpl-list');
-    const $editBtn = $menu.find('.qpl-edit-btn');
-    if (currentView === 'all') {
-        $editBtn.hide();
-        renderList($list, _allAvatars, false);
-    } else if (currentView === 'char') {
-        $editBtn.toggle(charPs.length > 0);
-        renderCharView($list, charId);
-    } else {
-        // fav
-        $editBtn.toggle(hasFavs);
-        if (hasFavs) {
-            renderList($list, listIds, false);
-        } else {
-            $list.html(`
-                <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
-                    <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
-                    즐겨찾기한 페르소나가 없어요.<br>
-                    <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
-                </div>
-            `);
+    for (const oe of (sp.prompt_order || [])) {
+        if (!oe.order) continue;
+        const isGlobal = String(oe.character_id) === String(GLOBAL_DUMMY_ID);
+        let removedBefore = 0;
+        for (let i = 0; i < insertPosition && i < oe.order.length; i++) {
+            if (selectedSet.has(oe.order[i].identifier)) removedBefore++;
         }
+        const filtered = oe.order.filter(e => !selectedSet.has(e.identifier));
+        const adjPos = Math.max(0, Math.min(insertPosition - removedBefore, filtered.length));
+        const toInsert = isGlobal
+            ? selected.map(e => ({ identifier: e.identifier, enabled: e.enabled }))
+            : selected.map(e => ({ identifier: e.identifier, enabled: true }));
+        filtered.splice(adjPos, 0, ...toInsert);
+        oe.order = filtered;
     }
 
-    if (popper) popper.update();
+    try {
+        await savePreset(sourcePresetName, sp);
+        openai_settings[srcIdx] = sp;
+        if (sourcePresetName === getCurrentPreset()) { oai_settings.prompts = sp.prompts; oai_settings.prompt_order = sp.prompt_order; }
+        if (makeGroup && groupName) {
+            const newIds = selected.map(e => e.identifier);
+            const gs = getGroupsForPreset(sourcePresetName); let fn = groupName, c = 1;
+            while (gs.some(g => g.name === fn)) fn = `${groupName} (${c++})`;
+            gs.push({ name: fn, isOn: false, toggles: newIds.map(id => ({ target: id, behavior: 'direct', override: null })) });
+            saveGroups(sourcePresetName, gs);
+            renderTGGroups();
+            toastr.success(`${n}개 순서 변경 완료 + 그룹 "${fn}" 생성!`);
+        } else {
+            toastr.success(`${n}개 순서 변경 완료`);
+        }
+        sourceOrderedPrompts = getOrderedPrompts(openai_settings[srcIdx]);
+        targetOrderedPrompts = getOrderedPrompts(openai_settings[srcIdx]);
+        selectedSourceIndices.clear(); insertPosition = -1;
+        const cb = document.getElementById('ptm-make-group'); if (cb) cb.checked = false;
+        document.getElementById('ptm-gname-row')?.classList.add('ptm-hidden');
+        const gi = document.getElementById('ptm-gname'); if (gi) gi.value = '';
+        renderSrcList(); renderDstList(); updateButtons();
+        try { setupChatCompletionPromptManager(oai_settings).render(); } catch(e) { console.warn('[PTM] PM refresh failed', e); }
+    } catch(err) { console.error('[PTM]', err); toastr.error('실패: ' + err.message); }
 }
 
-// ─── 터치/마우스 드래그 (QPM-style: in-container transform) ──────────────────
-// 행이 컨테이너 안에서 translateY로 움직임. 고스트 없음, body 탈출 없음.
-// handle에 setPointerCapture → 모바일 스크롤 충돌 방지.
-function setupTouchDrag($list) {
-    const list = $list[0];
+// ══════════════════════════════════════════
+// H. Wire mover + TG events
+// ══════════════════════════════════════════
 
-    let drag = null; // { el, fromIdx, currentIdx, rows, rowH }
+function refreshPresetSelects() {
+    const opts = getPresetOptions();
+    const src = document.getElementById('ptm-src');
+    const dst = document.getElementById('ptm-dst');
+    if (!src || !dst) return;
+    const prevSrc = src.value, prevDst = dst.value;
+    src.innerHTML = opts;
+    dst.innerHTML = opts;
+    if ([...src.options].some(o => o.value === prevSrc)) src.value = prevSrc;
+    if ([...dst.options].some(o => o.value === prevDst)) dst.value = prevDst;
+}
 
-    function getRows() {
-        return [...list.querySelectorAll('.qpl-row')];
+function wireMover() {
+    document.querySelector('#ptm-mover-drawer .inline-drawer-toggle')?.addEventListener('click', () => {
+        setTimeout(() => { refreshPresetSelects(); renderSrcList(); renderDstList(); updateButtons(); }, 0);
+    });
+    document.getElementById('ptm-src')?.addEventListener('change', e => {
+        sourcePresetName = e.target.value; selectedSourceIndices.clear(); sourceOrderedPrompts = [];
+        renderSrcList(); updateButtons();
+    });
+    document.getElementById('ptm-dst')?.addEventListener('change', e => {
+        targetPresetName = e.target.value; insertPosition = -1; targetOrderedPrompts = [];
+        renderDstList(); updateButtons();
+    });
+    document.getElementById('ptm-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#ptm-src-list .ptm-chk').forEach(cb => { cb.checked = true; selectedSourceIndices.add(+cb.dataset.i); cb.closest('.ptm-item').classList.add('ptm-chked'); }); updateButtons();
+    });
+    document.getElementById('ptm-none')?.addEventListener('click', () => {
+        document.querySelectorAll('#ptm-src-list .ptm-chk').forEach(cb => { cb.checked = false; cb.closest('.ptm-item').classList.remove('ptm-chked'); }); selectedSourceIndices.clear(); updateButtons();
+    });
+    document.getElementById('ptm-range')?.addEventListener('click', () => {
+        if (selectedSourceIndices.size < 2) { toastr.warning('시작과 끝 항목 2개를 선택하세요'); return; }
+        const s = [...selectedSourceIndices].sort((a, b) => a - b), mn = s[0], mx = s[s.length - 1];
+        for (let i = mn; i <= mx; i++) selectedSourceIndices.add(i);
+        document.querySelectorAll('#ptm-src-list .ptm-chk').forEach(cb => { const i = +cb.dataset.i; if (i >= mn && i <= mx) { cb.checked = true; cb.closest('.ptm-item').classList.add('ptm-chked'); } }); updateButtons();
+    });
+    document.getElementById('ptm-make-group')?.addEventListener('change', e => {
+        document.getElementById('ptm-gname-row')?.classList[e.target.checked ? 'remove' : 'add']('ptm-hidden');
+        if (e.target.checked) document.getElementById('ptm-gname')?.focus();
+    });
+    document.getElementById('ptm-copy')?.addEventListener('click', () => performOperation(false));
+    document.getElementById('ptm-move')?.addEventListener('click', () => performOperation(true));
+}
+
+function wireTG() {
+    document.querySelector('#ptm-tg-drawer .inline-drawer-toggle')?.addEventListener('click', () => {
+        setTimeout(renderTGGroups, 0);
+    });
+    document.getElementById('ptm-add-group')?.addEventListener('click', async () => {
+        const pn = getCurrentPreset(); if (!pn) { toastr.warning('프리셋을 먼저 선택하세요'); return; }
+        const name = await callGenericPopup('새 그룹 이름:', POPUP_TYPE.INPUT, '');
+        if (!name?.trim()) return;
+        const gs = getGroupsForPreset(pn); if (gs.some(g => g.name === name.trim())) { toastr.warning('같은 이름이 이미 있습니다'); return; }
+        gs.push({ name: name.trim(), isOn: false, showInPopup: false, toggles: [] }); saveGroups(pn, gs); renderTGGroups();
+    });
+    document.getElementById('ptm-reorder-btn')?.addEventListener('click', () => {
+        groupReorderMode = !groupReorderMode;
+        if (groupReorderMode) toggleReorderMode = null;
+        const btn = document.getElementById('ptm-reorder-btn');
+        if (btn) { btn.textContent = groupReorderMode ? '✓' : '⠿'; btn.style.color = groupReorderMode ? '#6ddb9e' : ''; }
+        renderTGGroups();
+    });
+    wireTGReorder();
+}
+
+function wireTGReorder() {
+    const area = document.getElementById('ptm-tg-area');
+    if (!area) return;
+
+    // Smooth in-container drag using Pointer Events + CSS transform.
+    // - No ghost element, no document-level listeners, no RAF needed.
+    // - The dragged row slides up/down within its container via translateY.
+    // - Sibling rows smoothly shift out of the way with CSS transition.
+    // - setPointerCapture ensures move/up fire even if pointer leaves the area.
+
+    let drag = null; // { el, gi, fromTi, currentTi, rows, rowH }
+
+    function getRows(gi) {
+        return [...area.querySelectorAll(`.ptm-trow[data-gi="${gi}"][data-draggable="true"]`)];
     }
 
-    function applyPositions(fromIdx, toIdx, rows, dragEl, rowH) {
+    function applyPositions(fromTi, toTi, rows, dragEl, rowH) {
         rows.forEach((r, i) => {
             if (r === dragEl) return;
             let shift = 0;
-            if (fromIdx < toIdx) {
-                if (i > fromIdx && i <= toIdx) shift = -rowH;
+            if (fromTi < toTi) {
+                // Dragging down: rows between old↓new shift up by one slot
+                if (i > fromTi && i <= toTi) shift = -rowH;
             } else {
-                if (i >= toIdx && i < fromIdx) shift = rowH;
+                // Dragging up: rows between new↑old shift down by one slot
+                if (i >= toTi && i < fromTi) shift = rowH;
             }
             r.style.transition = 'transform 0.12s ease';
             r.style.transform  = shift ? `translateY(${shift}px)` : '';
@@ -634,351 +847,670 @@ function setupTouchDrag($list) {
         });
     }
 
-    function onPointerDown(e) {
-        if (drag) return;
-        const handle = e.target.closest('.qpl-drag-handle');
+    area.addEventListener('pointerdown', e => {
+        if (toggleReorderMode === null) return;
+        const handle = e.target.closest('.ptm-drag-handle');
         if (!handle) return;
-        const row = handle.closest('.qpl-row');
-        if (!row || !list.contains(row)) return;
+        const row = handle.closest('.ptm-trow[data-draggable="true"]');
+        if (!row || +row.dataset.gi !== toggleReorderMode) return;
 
         e.preventDefault();
-        const rows  = getRows();
-        const idx   = rows.indexOf(row);
-        const rowH  = row.offsetHeight;
+        const gi   = +row.dataset.gi;
+        const ti   = +row.dataset.ti;
+        const rows = getRows(gi);
+        const rowH = row.offsetHeight;
 
+        // Style the dragged row: lift it above siblings
         row.style.position  = 'relative';
         row.style.zIndex    = '10';
         row.style.opacity   = '0.88';
         row.style.boxShadow = '0 4px 12px rgba(0,0,0,0.28)';
         row.style.transition = 'none';
 
-        drag = { el: row, fromIdx: idx, currentIdx: idx, rows, rowH, startY: e.clientY };
-        handle.setPointerCapture(e.pointerId);
-    }
+        drag = { el: row, gi, fromTi: ti, currentTi: ti, rows, rowH, startY: e.clientY };
 
-    function onPointerMove(e) {
+        // Capture pointer so pointermove/pointerup always fire on this element
+        area.setPointerCapture(e.pointerId);
+    });
+
+    area.addEventListener('pointermove', e => {
         if (!drag) return;
-        e.preventDefault();
-        const { el, fromIdx, currentIdx, rows, rowH, startY } = drag;
+        const { el, fromTi, currentTi, rows, rowH, startY } = drag;
         const dy = e.clientY - startY;
 
-        const maxUp   = -(fromIdx * rowH);
-        const maxDown = (rows.length - 1 - fromIdx) * rowH;
+        // Clamp vertical movement to the group's list bounds
+        const maxUp   = -(fromTi * rowH);
+        const maxDown = (rows.length - 1 - fromTi) * rowH;
         const clamped = Math.max(maxUp, Math.min(maxDown, dy));
         el.style.transform = `translateY(${clamped}px)`;
 
-        const newIdx = Math.max(0, Math.min(rows.length - 1,
-            fromIdx + Math.round(dy / rowH)));
-        if (newIdx !== currentIdx) {
-            drag.currentIdx = newIdx;
-            applyPositions(fromIdx, newIdx, rows, el, rowH);
-        }
-    }
+        // Determine which slot we're hovering over
+        const newTi = Math.max(0, Math.min(rows.length - 1,
+            fromTi + Math.round(dy / rowH)));
 
-    function onPointerUp() {
+        if (newTi !== currentTi) {
+            drag.currentTi = newTi;
+            applyPositions(fromTi, newTi, rows, el, rowH);
+        }
+    });
+
+    function endDrag(e) {
         if (!drag) return;
-        const { el, fromIdx, currentIdx, rows } = drag;
+        const { el, gi, fromTi, currentTi, rows } = drag;
         drag = null;
+
+        // Remove pointer capture
+        try { area.releasePointerCapture(e.pointerId); } catch(_) {}
 
         resetStyles(rows);
 
-        if (currentIdx !== fromIdx) {
-            // Re-order DOM to match new position
-            const parent = el.parentElement;
-            const siblings = [...parent.querySelectorAll('.qpl-row')];
-            // Remove and re-insert at new index
-            parent.removeChild(el);
-            const ref = siblings[currentIdx] ?? null;
-            // Adjust ref since el was removed
-            const adjustedSiblings = [...parent.querySelectorAll('.qpl-row')];
-            const insertBefore = adjustedSiblings[currentIdx] ?? null;
-            parent.insertBefore(el, insertBefore);
+        if (currentTi !== fromTi) {
+            const pn = getCurrentPreset(), gs = getGroupsForPreset(pn);
+            const toggles = gs[gi].toggles;
+            const [moved] = toggles.splice(fromTi, 1);
+            toggles.splice(currentTi, 0, moved);
+            saveGroups(pn, gs);
+            renderTGGroups();
         }
-
-        resumeObserver();
-        if (popper) popper.update();
     }
 
-    list.addEventListener('pointerdown',   onPointerDown, { passive: false });
-    list.addEventListener('pointermove',   onPointerMove, { passive: false });
-    list.addEventListener('pointerup',     onPointerUp);
-    list.addEventListener('pointercancel', onPointerUp);
+    area.addEventListener('pointerup',     endDrag);
+    area.addEventListener('pointercancel', endDrag);
 }
 
-// ─── 행 생성 ──────────────────────────────────────────────────────────────────
-function createRow(avatarId, editMode = false) {
-    const { DOMPurify } = SillyTavern.libs;
-    const name      = power_user.personas?.[avatarId] || avatarId;
-    const title     = power_user.persona_descriptions?.[avatarId]?.title || '';
-    const imgUrl    = getImageUrl(avatarId);
-    const isActive  = avatarId === user_avatar;
-    const isDefault = avatarId === power_user.default_persona;
-    const locked    = getLockedPersona() === avatarId;
-    const charId    = getCurrentCharId();
-    const fav       = isFavorite(avatarId);
-    const linked    = charId ? isCharPersona(charId, avatarId) : false;
-    const t         = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
+// ══════════════════════════════════════════
+// J. PPC — Popup (two-tone, no hard border)
+// ══════════════════════════════════════════
 
-    const safeId    = DOMPurify.sanitize(avatarId);
-    const safeName  = DOMPurify.sanitize(name);
-    const safeTitle = DOMPurify.sanitize(title);
+let ppcIsOpen         = false;
+let ppcGroupsExpanded = false;
+let ppcBtn            = null;
+let ppcSubGi          = null;
 
-    const $row = $(`
-        <div class="qpl-row${isActive ? ' qpl-active' : ''}${editMode ? ' qpl-edit-mode' : ''}" data-avatar="${safeId}">
-            ${editMode ? '<div class="qpl-drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>' : ''}
-            <div class="qpl-avatar-wrap">
-                <img class="qpl-avatar${isDefault ? ' qpl-default' : ''}" src="${imgUrl}" alt="${safeName}" />
-            </div>
-            <div class="qpl-info">
-                <span class="qpl-name">${safeName}</span>
-                ${safeTitle ? `<span class="qpl-tag">${safeTitle}</span>` : ''}
-            </div>
-            ${!editMode ? `
-            <div class="qpl-row-actions">
-                <button class="qpl-row-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                    <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
-                </button>
-                <button class="qpl-row-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 연결 해제' : '현재 캐릭터에 연결'}">
-                    <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
-                </button>
-                <button class="qpl-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
-                    <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
-                </button>
-            </div>` : ''}
-        </div>
-    `);
-
-    // active row: 테마 accent 배경 + left bar CSS var
-    if (isActive) {
-        $row.css('background', t.accent + '18');
-        $row[0].style.setProperty('--qpl-active-bar', t.accent);
-    }
-
-    // active 색: 핀만 accent, 별/캐릭터는 CSS 고정색이 담당
-    if (!editMode && locked) {
-        $row.find('.qpl-pin-btn').css('color', t.accent);
-    }
-
-    if (!editMode) {
-        $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
-            const accentColor = t.accent;
-            $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
-            $row.addClass('qpl-active').css('background', accentColor + '18');
-            $row[0].style.setProperty('--qpl-active-bar', accentColor);
-            await setUserAvatar(avatarId);
-            updateButtonState();
-        });
-
-        // ⭐ 즐겨찾기 토글
-        $row.find('.qpl-row-fav-btn').on('click', e => {
-            e.stopPropagation();
-            toggleFavorite(avatarId);
-            const now = isFavorite(avatarId);
-            $(e.currentTarget).toggleClass('active', now)
-                .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
-            // 페르소나 패널 별 버튼 동기화
-            $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-fav-star`)
-                .toggleClass('active', now)
-                .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
-            // 즐겨찾기 탭에서 해제하면 즉시 행 제거
-            if (currentView === 'fav' && !now) {
-                $row.fadeOut(150, () => {
-                    $row.remove();
-                    const hasFavs = getSettings().favorites.length > 0;
-                    $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
-                    if (!hasFavs) {
-                        $('#qplMenu .qpl-list').html(`
-                            <div class="qpl-hint" style="display:block;text-align:center;padding:16px 14px;">
-                                <i class="fa-regular fa-star" style="display:block;font-size:1.6em;margin-bottom:8px;opacity:0.3;"></i>
-                                즐겨찾기한 페르소나가 없어요.<br>
-                                <span style="font-size:0.85em;opacity:0.7;">페르소나 패널에서 ⭐를 눌러 추가하세요.</span>
-                            </div>
-                        `);
-                    }
-                });
-            } else {
-                const hasFavs = getSettings().favorites.length > 0;
-                if (currentView === 'fav') $('#qplMenu .qpl-edit-btn').toggle(hasFavs);
-            }
-        });
-
-        // 👤 캐릭터 연결 토글
-        $row.find('.qpl-row-char-btn').on('click', e => {
-            e.stopPropagation();
-            const cid = getCurrentCharId();
-            if (!cid) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
-            toggleCharPersona(cid, avatarId);
-            const now = isCharPersona(cid, avatarId);
-            $(e.currentTarget).toggleClass('active', now)
-                .attr('title', now ? '캐릭터 연결 해제' : '현재 캐릭터에 연결')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
-            // 페르소나 패널 👤 버튼 동기화
-            $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-char-link-btn`)
-                .toggleClass('active', now)
-                .attr('title', now ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결')
-                .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
-            // 헤더 👤 버튼 갱신
-            refreshCharViewBtn();
-            // 캐릭터 탭에서 해제하면 즉시 행 제거
-            if (currentView === 'char' && !now) {
-                $row.fadeOut(150, () => {
-                    $row.remove();
-                    const remaining = getCharPersonas(cid).length;
-                    $('#qplMenu .qpl-edit-btn').toggle(remaining > 0);
-                    if (remaining === 0) renderCharView($('#qplMenu .qpl-list'), cid);
-                });
-            } else if (currentView === 'char') {
-                $('#qplMenu .qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
-            }
-        });
-
-        // 📌 채팅방 고정
-        $row.find('.qpl-pin-btn').on('click', async e => {
-            e.stopPropagation();
-            const $btn = $(e.currentTarget);
-            const willLock = !$btn.hasClass('active');
-            $btn.toggleClass('active', willLock)
-                .css('color', willLock ? t.accent : '')
-                .find('i').attr('class', `fa-${willLock ? 'solid' : 'regular'} fa-thumbtack`);
-            await toggleChatLock(avatarId);
-        });
-    }
-
-    return $row;
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ─── 즐겨찾기 별 + 캐릭터 연결 버튼 주입 ────────────────────────────────────
-function injectFavoriteStars() {
-    const charId = getCurrentCharId();
-
-    $('.avatar-container[data-avatar-id]').each(function () {
-        const $item    = $(this);
-        const avatarId = $item.attr('data-avatar-id');
-        if (!avatarId) return;
-
-        // ⭐ 즐겨찾기 버튼
-        if (!$item.find('.qpl-fav-star').length) {
-            const fav   = isFavorite(avatarId);
-            const $star = $(`
-                <button class="qpl-fav-star${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                    <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
-                </button>
-            `);
-            $star.on('click', function (e) {
-                e.stopPropagation(); e.preventDefault();
-                toggleFavorite(avatarId);
-                const now = isFavorite(avatarId);
-                $(this).toggleClass('active', now)
-                       .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
-                       .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
-            });
-
-            const $title = $item.find('.ch_additional_info').first();
-            const $name  = $item.find('.ch_name').first();
-            if ($title.length) $title.before($star);
-            else if ($name.length) $name.after($star);
-            else $item.append($star);
-        }
-
-        // 👤 캐릭터 연결 버튼
-        if (!$item.find('.qpl-char-link-btn').length) {
-            const linked = charId ? isCharPersona(charId, avatarId) : false;
-            const $link  = $(`
-                <button class="qpl-char-link-btn${linked ? ' active' : ''}"
-                        title="${linked ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결'}">
-                    <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
-                </button>
-            `);
-            $link.on('click', function (e) {
-                e.stopPropagation(); e.preventDefault();
-                // 클릭 시점에 charId를 새로 가져옴 (클로저 stale 방지)
-                const currentCharId = getCurrentCharId();
-                if (!currentCharId) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
-                toggleCharPersona(currentCharId, avatarId);
-                const now = isCharPersona(currentCharId, avatarId);
-                $(this).toggleClass('active', now)
-                       .attr('title', now ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결')
-                       .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
-                refreshCharViewBtn();
-            });
-            // 별 버튼 바로 뒤에 삽입, 별이 없으면 같은 위치 fallback
-            const $star = $item.find('.qpl-fav-star');
-            if ($star.length) $star.after($link);
-            else {
-                const $title = $item.find('.ch_additional_info').first();
-                const $name  = $item.find('.ch_name').first();
-                if ($title.length) $title.before($link);
-                else if ($name.length) $name.after($link);
-                else $item.append($link);
-            }
-        } else {
-            // 이미 버튼이 있으면 현재 캐릭터 기준으로 상태만 갱신
-            const fresh = getCurrentCharId();
-            const now   = fresh ? isCharPersona(fresh, avatarId) : false;
-            $item.find('.qpl-char-link-btn')
-                 .toggleClass('active', now)
-                 .attr('title', now ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결')
-                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
-        }
-    });
-}
-
-let _observer = null;
-let _observerPaused = false;
-
-function pauseObserver()  { _observerPaused = true; }
-function resumeObserver() { _observerPaused = false; }
-
-function setupPanelObserver() {
-    let timer = null;
-    _observer = new MutationObserver(() => {
-        if (_observerPaused) return;
-        clearTimeout(timer);
-        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
-        timer = setTimeout(injectFavoriteStars, 600);
-    });
-    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
-    _observer.observe(document.body, { childList: true, subtree: true });
-}
-
-// ─── 초기화 ────────────────────────────────────────────────────────────────────
-jQuery(async () => {
+function getCurrentPresetName() {
     try {
-        getSettings();
-        setupPanelObserver();
-
-        // 캐릭터 전환 시: 연결된 페르소나가 여러 개이고 채팅 고정 없으면 선택 팝업
-        eventSource.on(event_types.CHAT_CHANGED, () => {
-            updateButtonState();
-            setTimeout(injectFavoriteStars, 200);
-            try {
-                const charId  = getCurrentCharId();
-                const charPs  = getCharPersonas(charId);
-                const locked  = getLockedPersona();
-                if (charPs.length === 1 && !locked) {
-                    setUserAvatar(charPs[0]).then(() => updateButtonState());
-                }
-            } catch (err) {
-                console.warn(`[${MODULE_NAME}] CHAT_CHANGED 페르소나 처리 오류:`, err);
+        const ctx = SillyTavern.getContext();
+        if (typeof ctx.getPresetManager === 'function') {
+            const pm = ctx.getPresetManager();
+            if (typeof pm?.getSelectedPresetName === 'function') {
+                const name = pm.getSelectedPresetName();
+                if (name) return name;
             }
-        });
-
-        eventSource.on(event_types.SETTINGS_UPDATED, updateButtonState);
-        eventSource.on(event_types.APP_READY, () => {
-            addQuickPersonaButton();
-            updateButtonState();
-            setTimeout(injectFavoriteStars, 800);
-        });
-        addQuickPersonaButton();
-        setTimeout(injectFavoriteStars, 1200); // 초기 주입
-        $(document.body).on('click.qpl', e => {
-            if (isOpen && !e.target.closest('#qplMenu') && !e.target.closest('#qplBtn')) closeMenu();
-        });
-        updateButtonState();
-        console.log(`[${MODULE_NAME}] ✅ 로드 완료`);
-    } catch (err) {
-        console.error(`[${MODULE_NAME}] ❌ 초기화 오류:`, err);
+        }
+    } catch {}
+    for (const sel of ['#settings_preset', '#preset_name_select', 'select[name="preset_name"]']) {
+        const el = document.querySelector(sel);
+        if (!el) continue;
+        const txt = el.options[el.selectedIndex]?.text?.trim();
+        if (txt && txt !== '—') return txt;
     }
+    return '—';
+}
+
+async function getCurrentProfileName() {
+    try {
+        const ctx = SillyTavern.getContext();
+        const execFn = ctx.executeSlashCommandsWithOptions
+                    ?? window.executeSlashCommandsWithOptions
+                    ?? ctx.executeSlashCommands
+                    ?? window.executeSlashCommands;
+        if (typeof execFn === 'function') {
+            const result = await execFn('/profile', { showOutput: false, handleReturn: false });
+            const name = (typeof result === 'string' ? result : result?.pipe)?.trim();
+            if (name && name !== 'null') return name;
+        }
+    } catch {}
+    const el = document.querySelector('#connection-profile-select');
+    if (el) {
+        const txt = el.options[el.selectedIndex]?.text?.trim();
+        if (txt && txt !== '—') return txt;
+    }
+    return '—';
+}
+
+// Create or reuse the main popup element (two-tone: upper / lower div)
+function getOrCreatePpcPopup() {
+    let popup = document.getElementById('ppc-popup');
+    if (popup) return popup;
+    popup = document.createElement('div');
+    popup.id = 'ppc-popup';
+    popup.style.cssText = `
+        display:none;
+        position:fixed;
+        z-index:2147483647;
+        border:none;
+        border-radius:10px;
+        font-size:14px;
+        line-height:1.6;
+        color:#2a2a2a;
+        box-shadow:0 4px 16px rgba(0,0,0,0.18);
+        overflow:hidden;
+        min-width:200px;
+    `;
+    popup.innerHTML = `
+        <div id="ppc-upper" style="background:#f5f0e8;padding:10px 15px;white-space:nowrap;"></div>
+        <div id="ppc-lower" style="background:#e8e2d8;padding:8px 14px;"></div>
+        <div id="ppc-theme-bar" style="display:none;padding:5px 10px;gap:2px;align-items:center;justify-content:space-between;">
+            ${Object.entries(PPC_THEMES).map(([k,t]) =>
+                `<button class="ppc-theme-btn" data-theme="${k}"
+                    title="${t.title}"
+                    style="border:none;background:none;cursor:pointer;font-size:18px;padding:3px 5px;border-radius:6px;line-height:1.2;opacity:0.5;flex:1;text-align:center;">
+                    ${t.label}
+                </button>`
+            ).join('')}
+        </div>
+    `;
+    // Wire theme buttons
+    popup.querySelectorAll('.ppc-theme-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            setPpcTheme(btn.dataset.theme);
+            const bar = document.getElementById('ppc-theme-bar');
+            if (bar) bar.style.display = 'none';
+        });
+    });
+    document.body.appendChild(popup);
+    return popup;
+}
+
+function positionPpcPopup(popup, btn) {
+    const rect   = btn.getBoundingClientRect();
+    const popupW = popup.offsetWidth  || 220;
+    const popupH = popup.offsetHeight || 80;
+    let left = rect.left + rect.width / 2 - popupW / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+    let top = rect.top - popupH - 8;
+    if (top < 8) top = rect.bottom + 8;
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+}
+
+
+async function openPpcPopup() {
+    const popup = getOrCreatePpcPopup();
+    // Upper: profile + preset (static until refreshed)
+    const preset  = escapeHtml(getCurrentPresetName());
+    const profile = escapeHtml(await getCurrentProfileName());
+    popup.querySelector('#ppc-upper').innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span>🤖</span><span style="font-weight:500">${profile}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+            <span>📋</span><span style="font-weight:500">${preset}</span>
+        </div>`;
+    // Lower: groups section
+    renderPpcLower();
+    popup.style.display = 'block';
+    ppcIsOpen = true;
+    requestAnimationFrame(() => { positionPpcPopup(popup, ppcBtn); applyPpcTheme(); });
+}
+
+function closePpcPopup() {
+    const popup = document.getElementById('ppc-popup');
+    if (popup) popup.style.display = 'none';
+    const bar = document.getElementById('ppc-theme-bar');
+    if (bar) bar.style.display = 'none';
+    closePpcSub();
+    ppcIsOpen = false;
+}
+
+// Call this whenever PTM group state changes while popup is open
+function refreshPpcPopup() {
+    if (!ppcIsOpen) return;
+    renderPpcLower();
+    const popup = document.getElementById('ppc-popup');
+    if (popup && ppcBtn) requestAnimationFrame(() => positionPpcPopup(popup, ppcBtn));
+}
+
+function renderPpcLower() {
+    const lower = document.getElementById('ppc-lower');
+    if (!lower) return;
+
+    const pn      = getCurrentPreset();
+    const allGs   = pn ? getGroupsForPreset(pn) : [];
+    const visible = allGs.reduce((acc, g, gi) => { if (g.showInPopup) acc.push({ g, gi }); return acc; }, []);
+    const arrow   = ppcGroupsExpanded ? '▾' : '▸';
+
+    let rowsHtml = '';
+    if (ppcGroupsExpanded) {
+        if (!visible.length) {
+            rowsHtml = `<div style="font-size:12px;opacity:0.55;padding:3px 0 1px;">표시할 그룹 없음</div>`;
+        } else {
+            rowsHtml = visible.map(({ g, gi }) => {
+                const bg  = g.isOn ? PPC_ON_BG  : PPC_OFF_BG;
+                const clr = g.isOn ? PPC_ON_CLR : PPC_OFF_CLR;
+                return `
+                <div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+                    <button class="ppc-grp-toggle" data-gi="${gi}"
+                        style="flex-shrink:0;border:none;border-radius:4px;width:32px;height:20px;font-size:11px;font-weight:700;cursor:pointer;background:${bg};color:${clr};display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;">
+                        ${g.isOn ? 'On' : 'Off'}
+                    </button>
+                    <span class="ppc-grp-name" data-gi="${gi}"
+                        style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:500;cursor:pointer;"
+                        title="${escapeHtml(g.name)}">
+                        ${escapeHtml(g.name)}
+                    </span>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    lower.innerHTML = `
+        <div id="ppc-grp-head" style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;opacity:0.7;">
+            <span style="flex:1;display:flex;align-items:center;gap:5px;">그룹 <span>${arrow}</span></span>
+            <button id="ppc-theme-toggle" title="테마 선택"
+                style="border:none;background:none;cursor:pointer;font-size:16px;padding:2px 4px;line-height:1.4;opacity:0.55;flex-shrink:0;display:inline-flex;align-items:center;">🤍</button>
+        </div>
+        ${ppcGroupsExpanded ? `<div style="margin-top:4px;">${rowsHtml}</div>` : ''}`;
+
+    // Wire header toggle
+    lower.querySelector('#ppc-grp-head').addEventListener('click', (e) => {
+        if (e.target.closest('#ppc-theme-toggle')) return;
+        e.stopPropagation();
+        ppcGroupsExpanded = !ppcGroupsExpanded;
+        renderPpcLower();
+        const popup = document.getElementById('ppc-popup');
+        if (popup && ppcBtn) requestAnimationFrame(() => positionPpcPopup(popup, ppcBtn));
+    });
+
+    // Wire 🤍 theme toggle button
+    lower.querySelector('#ppc-theme-toggle')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const bar = document.getElementById('ppc-theme-bar');
+        if (!bar) return;
+        bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    // Wire On/Off buttons
+    lower.querySelectorAll('.ppc-grp-toggle').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const gi = +btn.dataset.gi, pn2 = getCurrentPreset(), gs = getGroupsForPreset(pn2);
+            gs[gi].isOn = !gs[gi].isOn;
+            applyGroup(pn2, gi);
+            saveGroups(pn2, gs);
+            renderPpcLower();
+            renderTGGroups();
+            // 서브창이 같은 gi로 열려있으면 동기화
+            const sub = document.getElementById('ppc-sub');
+            if (sub && sub.style.display !== 'none' && ppcSubGi === gi) {
+                sub.innerHTML = buildPpcSubHtml(gi);
+                wirePpcSub(sub, gi);
+                requestAnimationFrame(() => positionPpcSub(sub));
+            }
+            const popup = document.getElementById('ppc-popup');
+            if (popup && ppcBtn) requestAnimationFrame(() => positionPpcPopup(popup, ppcBtn));
+        });
+    });
+
+    // Wire group name → sub-popup
+    lower.querySelectorAll('.ppc-grp-name').forEach(span => {
+        span.addEventListener('click', e => {
+            e.stopPropagation();
+            openPpcSub(+span.dataset.gi);
+        });
+    });
+}
+
+// ══════════════════════════════════════════
+// K. PPC — Sub-popup (group detail)
+// ══════════════════════════════════════════
+
+function getOrCreatePpcSub() {
+    let sub = document.getElementById('ppc-sub');
+    if (sub) return sub;
+    sub = document.createElement('div');
+    sub.id = 'ppc-sub';
+    sub.style.cssText = `
+        display:none;
+        position:fixed;
+        z-index:2147483648;
+        background:#f5f0e8;
+        border:none;
+        border-radius:10px;
+        font-size:13px;
+        color:#2a2a2a;
+        box-shadow:0 6px 24px rgba(0,0,0,0.18);
+        min-width:240px;
+        max-width:320px;
+        max-height:70vh;
+        overflow-y:auto;
+    `;
+    document.body.appendChild(sub);
+    return sub;
+}
+
+function positionPpcSub(sub) {
+    const popup = document.getElementById('ppc-popup');
+    const vw = window.innerWidth, vh = window.innerHeight;
+
+    // Set max-height so sub never covers the popup below it
+    if (popup) {
+        const pr = popup.getBoundingClientRect();
+        const availableH = pr.top - 18; // gap above popup
+        sub.style.maxHeight = Math.max(120, availableH) + 'px';
+        sub.style.overflowY = 'auto';
+    }
+
+    const subW = sub.offsetWidth  || 280;
+    const subH = sub.offsetHeight || 200;
+
+    // Horizontally: center over popup
+    let left;
+    if (popup) {
+        const pr = popup.getBoundingClientRect();
+        left = pr.left + (pr.width - subW) / 2;
+    } else {
+        left = (vw - subW) / 2;
+    }
+    left = Math.max(8, Math.min(left, vw - subW - 8));
+
+    // Vertically: just above popup
+    let top;
+    if (popup) {
+        const pr = popup.getBoundingClientRect();
+        top = pr.top - subH - 8;
+        if (top < 8) top = 8;
+    } else {
+        top = Math.max(8, (vh - subH) / 2);
+    }
+
+    sub.style.left = left + 'px';
+    sub.style.top  = top  + 'px';
+}
+
+function openPpcSub(gi) {
+    const sub = getOrCreatePpcSub();
+    ppcSubGi = gi;
+    sub.innerHTML = buildPpcSubHtml(gi);
+    sub.style.display = 'block';
+    requestAnimationFrame(() => { positionPpcSub(sub); wirePpcSub(sub, gi); applyPpcTheme(); });
+}
+
+function closePpcSub() {
+    const sub = document.getElementById('ppc-sub');
+    if (sub) sub.style.display = 'none';
+    ppcSubGi = null;
+}
+
+function buildPpcSubHtml(gi) {
+    const pn = getCurrentPreset(), gs = getGroupsForPreset(pn), g = gs[gi];
+    if (!g) return '<div style="padding:12px;opacity:0.6;">그룹을 찾을 수 없습니다</div>';
+
+    let allPrompts;
+    try {
+        allPrompts = setupChatCompletionPromptManager(oai_settings).serviceSettings?.prompts || [];
+    } catch(e) {
+        const preset = getLivePresetData(pn) || openai_settings[openai_setting_names[pn]];
+        allPrompts = preset?.prompts || [];
+    }
+
+    const grpBg  = g.isOn ? PPC_ON_BG  : PPC_OFF_BG;
+    const grpClr = g.isOn ? PPC_ON_CLR : PPC_OFF_CLR;
+
+    const rows = g.toggles.map((t, ti) => {
+        const name     = allPrompts.find(p => p.identifier === t.target)?.name ?? '';
+        const isDirect = t.behavior === 'direct';
+        const ovr      = t.override ?? null;
+        const effectOn = ovr !== null ? ovr : (isDirect ? g.isOn : !g.isOn);
+
+        let ovrBg, ovrClr, ovrLabel;
+        if (ovr === null)      { ovrLabel = '고정'; ovrBg = 'rgba(150,150,150,0.25)'; ovrClr = '#c0c0c0'; }
+        else if (ovr === true) { ovrLabel = 'On';  ovrBg = 'rgba(90,184,130,0.25)';  ovrClr = '#6dcc96'; }
+        else                   { ovrLabel = 'Off'; ovrBg = 'rgba(184,90,90,0.25)';   ovrClr = '#d07070'; }
+
+        const bBg  = isDirect ? 'rgba(150,150,150,0.25)' : 'rgba(122,100,220,0.25)';
+        const bClr = isDirect ? '#c0c0c0' : '#b0a0f0';
+
+        const btnStyle = 'border:none;border-radius:3px;width:30px;min-width:30px;height:18px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;white-space:nowrap;letter-spacing:-0.3px;';
+        const stBg  = effectOn ? 'rgba(90,184,130,0.2)'   : 'rgba(200,200,200,0.1)';
+        const stClr = effectOn ? '#6dcc96'                 : '#999';
+        return `
+        <div style="display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid rgba(0,0,0,0.08);">
+            <span style="font-size:10px;width:26px;min-width:26px;height:18px;text-align:center;font-weight:700;border-radius:3px;background:${stBg};color:${stClr};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${effectOn ? 'On' : 'Off'}</span>
+            <button class="ppc-sub-ovr" data-ti="${ti}"
+                style="${btnStyle}background:${ovrBg};color:${ovrClr};">
+                ${ovrLabel}
+            </button>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+            <button class="ppc-sub-bsel" data-ti="${ti}"
+                style="${btnStyle}background:${bBg};color:${bClr};">
+                ${isDirect ? '동일' : '반전'}
+            </button>
+        </div>`;
+    }).join('');
+
+    return `
+    <div style="padding:12px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <button class="ppc-sub-grp-toggle"
+                style="border:none;border-radius:4px;width:32px;height:20px;cursor:pointer;font-size:11px;font-weight:700;flex-shrink:0;background:${grpBg};color:${grpClr};display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;">
+                ${g.isOn ? 'On' : 'Off'}
+            </button>
+            <strong style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${escapeHtml(g.name)}</strong>
+            <button class="ppc-sub-close"
+                style="border:none;background:transparent;color:#999;cursor:pointer;font-size:17px;padding:0 2px;flex-shrink:0;line-height:1;">✕</button>
+        </div>
+        <div class="ppc-sub-rows">
+            ${rows || '<div style="opacity:0.5;font-size:12px;padding:4px 0;">토글 없음</div>'}
+        </div>
+
+    </div>`;
+}
+
+function wirePpcSub(sub, gi) {
+    const pn = getCurrentPreset();
+
+    sub.querySelector('.ppc-sub-close')?.addEventListener('click', e => {
+        e.stopPropagation(); closePpcSub();
+    });
+
+    sub.querySelector('.ppc-sub-grp-toggle')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const gs = getGroupsForPreset(pn);
+        gs[gi].isOn = !gs[gi].isOn;
+        applyGroup(pn, gi); saveGroups(pn, gs);
+        // Re-render sub
+        sub.innerHTML = buildPpcSubHtml(gi);
+        wirePpcSub(sub, gi);
+        renderPpcLower();
+        renderTGGroups();
+    });
+
+    sub.querySelectorAll('.ppc-sub-ovr').forEach(btn => btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const ti = +btn.dataset.ti, gs = getGroupsForPreset(pn);
+        const cur = gs[gi].toggles[ti].override ?? null;
+        gs[gi].toggles[ti].override = cur === null ? true : cur === true ? false : null;
+        applyGroup(pn, gi); saveGroups(pn, gs);
+        sub.innerHTML = buildPpcSubHtml(gi);
+        wirePpcSub(sub, gi);
+        renderTGGroups();
+        renderPpcLower();
+    }));
+
+    sub.querySelectorAll('.ppc-sub-bsel').forEach(btn => btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const ti = +btn.dataset.ti, gs = getGroupsForPreset(pn);
+        gs[gi].toggles[ti].behavior = gs[gi].toggles[ti].behavior === 'direct' ? 'invert' : 'direct';
+        saveGroups(pn, gs);
+        sub.innerHTML = buildPpcSubHtml(gi);
+        wirePpcSub(sub, gi);
+        renderTGGroups();
+    }));
+
+
+}
+
+// ══════════════════════════════════════════
+// L. PPC — Button injection & events
+// ══════════════════════════════════════════
+
+function injectPpcButton() {
+    if (document.getElementById('ppc-btn')) return;
+    getOrCreatePpcPopup(); // ensure DOM element exists
+    getOrCreatePpcSub();
+
+    const btn = document.createElement('div');
+    btn.id = 'ppc-btn';
+    btn.title = 'Preset & Profile';
+    btn.classList.add('interactable');
+    btn.setAttribute('tabindex', '0');
+    btn.textContent = '🔌';
+    Object.assign(btn.style, {
+        fontSize: '1rem', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+    });
+    ppcBtn = btn;
+
+    // Re-position on viewport resize (e.g. mobile keyboard)
+    (window.visualViewport ?? window).addEventListener('resize', () => {
+        if (!ppcIsOpen) return;
+        const popup = document.getElementById('ppc-popup');
+        if (popup) requestAnimationFrame(() => positionPpcPopup(popup, ppcBtn));
+    });
+
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        ppcIsOpen ? closePpcPopup() : openPpcPopup();
+    });
+
+    // Close on outside click — sub first, then main
+    document.addEventListener('click', e => {
+        if (!ppcIsOpen) return;
+        const popup = document.getElementById('ppc-popup');
+        const sub   = document.getElementById('ppc-sub');
+        const subVisible = sub && sub.style.display !== 'none';
+        const outsideAll = !btn.contains(e.target) && !popup?.contains(e.target) && !sub?.contains(e.target);
+        if (!outsideAll) return;
+        if (subVisible) {
+            closePpcSub();
+        } else {
+            closePpcPopup();
+        }
+    });
+
+    // Insert after wand / options button
+    const wandSelectors = ['#options_button', '#extensionsMenuButton', '#extensionOptionsButton', '.fa-wand-magic-sparkles', '.fa-magic'];
+    let inserted = false;
+    for (const sel of wandSelectors) {
+        let target = document.querySelector(sel);
+        if (!target) continue;
+        if (sel.startsWith('.fa-')) target = target.closest('.interactable, [tabindex]') || target.parentElement;
+        if (target?.parentElement) { target.parentElement.insertBefore(btn, target.nextSibling); inserted = true; break; }
+    }
+    if (!inserted) {
+        for (const sel of ['#leftSendForm', '#send_form > div.flex-container', '#send_form']) {
+            const el = document.querySelector(sel);
+            if (el) { el.appendChild(btn); inserted = true; break; }
+        }
+    }
+    if (!inserted) {
+        const sendBtn = document.getElementById('send_but');
+        if (sendBtn?.parentElement) sendBtn.parentElement.insertBefore(btn, sendBtn);
+    }
+}
+
+function setupPpcEvents() {
+    const UPDATE_EVENTS = [
+        'preset_changed', 'mainApiChanged',
+        'connection_profile_loaded', event_types.CHAT_CHANGED,
+    ];
+    for (const evt of UPDATE_EVENTS) {
+        eventSource.on(evt, async () => {
+            if (!ppcIsOpen) return;
+            const popup = document.getElementById('ppc-popup');
+            if (!popup) return;
+            // Refresh upper section
+            const preset  = escapeHtml(getCurrentPresetName());
+            const profile = escapeHtml(await getCurrentProfileName());
+            const upper = popup.querySelector('#ppc-upper');
+            if (upper) upper.innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span>🤖</span><span style="font-weight:500">${profile}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+                    <span>📋</span><span style="font-weight:500">${preset}</span>
+                </div>`;
+            renderPpcLower();
+            if (ppcBtn) requestAnimationFrame(() => positionPpcPopup(popup, ppcBtn));
+        });
+    }
+}
+
+
+// ══════════════════════════════════════════
+// MIGRATION — from prompt-toggle-manager
+// ══════════════════════════════════════════
+
+function migrateFromLegacy() {
+    try {
+        const LEGACY_KEY = 'prompt-toggle-manager';
+        const legacy = extension_settings[LEGACY_KEY];
+        if (!legacy?.presets) return; // nothing to migrate
+
+        const qpm = getTGStore();
+
+        // If migration was already completed once, skip entirely.
+        // This prevents deleted groups from being re-imported on every reload.
+        if (qpm.migrationDone) return;
+
+        let migratedGroups = 0;
+
+        for (const [presetName, groups] of Object.entries(legacy.presets)) {
+            if (!Array.isArray(groups) || !groups.length) continue;
+            if (!qpm.presets[presetName]) qpm.presets[presetName] = [];
+            const existing = new Set(qpm.presets[presetName].map(g => g.name));
+            for (const g of groups) {
+                if (existing.has(g.name)) continue; // skip duplicates
+                qpm.presets[presetName].push(g);
+                migratedGroups++;
+            }
+        }
+
+        // Mark migration as done so it never runs again
+        qpm.migrationDone = true;
+        saveSettingsDebounced();
+
+        if (migratedGroups > 0) {
+            toastr.success(`기존 확장에서 그룹 ${migratedGroups}개를 자동으로 가져왔습니다 ✅`);
+            console.log(`[${extensionName}] Migrated ${migratedGroups} groups from ${LEGACY_KEY}`);
+        }
+    } catch(e) {
+        console.warn(`[${extensionName}] Migration failed:`, e);
+    }
+}
+
+// ══════════════════════════════════════════
+// I. Mount & Init
+// ══════════════════════════════════════════
+
+function mount() {
+    if (document.getElementById('ptm-mover-drawer')) return true;
+    const target = document.querySelector('.range-block.m-b-1');
+    if (!target) return false;
+    const tg = buildTGDrawer(), mover = buildMoverDrawer();
+    target.before(tg); tg.before(mover);
+    wireMover(); wireTG(); renderTGGroups();
+    return true;
+}
+
+jQuery(async () => {
+    console.log(`[${extensionName}] Loading...`);
+    try {
+        await initImports();
+        migrateFromLegacy();
+        let c = 0;
+        const t = setInterval(() => { if (mount() || ++c > 50) clearInterval(t); }, 200);
+        eventSource.on(event_types.OAI_PRESET_CHANGED_AFTER, () => renderTGGroups());
+        eventSource.on(event_types.APP_READY, () => injectPpcButton());
+        setupPpcEvents();
+        console.log(`[${extensionName}] Loaded`);
+    } catch(err) { console.error(`[${extensionName}] Failed:`, err); }
 });
