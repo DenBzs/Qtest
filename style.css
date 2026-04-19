@@ -1,386 +1,643 @@
-/* ═══════════════════════════════════════════════════════
-   PromptQM — style.css
-   ═══════════════════════════════════════════════════════ */
+/* ── 하단 바 버튼 ── */
 
-/* ──────────────────────────────────────────
-   Shared helpers
-────────────────────────────────────────── */
-.ptm-hidden { display: none !important; }
-
-.ptm-ph {
-    color: var(--SmartThemeBodyColor, #aaa);
-    opacity: 0.5;
-    font-size: 12px;
-    padding: 8px 0;
-    text-align: center;
+#qplBtn {
+    position: relative;
+    width: var(--bottomFormBlockSize);
+    height: var(--bottomFormBlockSize);
+    order: 10;
 }
 
-/* ──────────────────────────────────────────
-   Small utility buttons (ptm-sm)
-────────────────────────────────────────── */
-.ptm-sm {
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.07));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.12));
-    border-radius: 4px;
-    color: var(--SmartThemeBodyColor, #ddd);
-    cursor: pointer;
-    font-size: 11px;
-    margin: 2px;
-    padding: 3px 8px;
-    transition: background 0.15s;
-}
-.ptm-sm:hover {
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.14));
-}
-.ptm-sm-full { width: 100%; margin-left: 0; margin-right: 0; box-sizing: border-box; }
-
-/* ──────────────────────────────────────────
-   Inline icon buttons (ptm-ibtn)
-────────────────────────────────────────── */
-.ptm-ibtn {
-    background: none;
+#qplBtnImg {
+    border-radius: 10px;
     border: 1px solid transparent;
-    border-radius: 4px;
-    box-sizing: border-box;
-    color: var(--SmartThemeBodyColor, #ddd);
+    box-shadow: 0 0 5px var(--black50a);
+    outline: 2px solid transparent;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
     cursor: pointer;
-    font-size: 11px;
-    font-weight: 600;
-    height: 20px;
-    line-height: 1;
-    padding: 0 5px;
-    transition: background 0.12s, border-color 0.12s;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
 }
-.ptm-ibtn:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.2);
-}
-.ptm-danger { color: #d07070 !important; font-size: 10px !important; }
-.ptm-danger:hover { background: rgba(208,112,112,0.15) !important; }
-.ptm-arr-disabled { opacity: 0.3; cursor: default; }
 
-/* ──────────────────────────────────────────
-   Group card
-────────────────────────────────────────── */
-.ptm-card {
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.04));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
-    border-radius: 7px;
-    margin-bottom: 8px;
+body.square-avatars #qplBtnImg { border-radius: 2px; }
+
+/* 채팅 고정 시 골든 테두리 */
+#qplBtn.qpl-locked #qplBtnImg { outline-color: var(--golden); }
+
+/* ── 팝업 패널 ── */
+
+#qplMenu {
+    z-index: 30000;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f8f5ff;
+    border: 1px solid #d8cef0;
+    border-radius: 12px;
+    width: min(96vw, 520px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    color: #2c2448;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.ptm-card-head {
-    align-items: center;
+/* ── 헤더 ── */
+
+.qpl-header {
     display: flex;
-    gap: 6px;
-    padding: 6px 8px;
-}
-
-/* On/Off toggle button */
-.ptm-onoff {
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 5px;
-    transition: background 0.15s;
-}
-.ptm-onoff-on  { background: #4fa872; color: #fff; }
-.ptm-onoff-off { background: #a84f4f; color: #fff; }
-.ptm-onoff:hover { filter: brightness(1.2); }
-
-.ptm-gname {
-    flex: 1;
-    font-size: 13px;
-    font-weight: 600;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.ptm-gcnt {
-    font-size: 11px;
-    font-weight: 400;
-    opacity: 0.55;
-}
-.ptm-gbtns {
     align-items: center;
-    display: flex;
-    flex-shrink: 0;
-    gap: 2px;
-}
-
-/* 📌 Pin toggle button */
-.ptm-pin-btn  { flex-shrink: 0; }
-.ptm-pin-active { opacity: 1 !important; background: rgba(160,144,232,0.22) !important; color: #b0a0f0 !important; }
-
-/* ──────────────────────────────────────────
-   Toggle list inside group card
-────────────────────────────────────────── */
-.ptm-tlist {
-    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
-    padding: 2px 6px 4px;
-}
-
-.ptm-trow {
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    display: flex;
-    gap: 5px;
-    padding: 4px 2px;
-}
-.ptm-trow:last-child { border-bottom: none; }
-.ptm-trow.ptm-drag-over  { background: rgba(109,219,158,0.12); }
-.ptm-trow.ptm-dragging   { opacity: 0.4; }
-
-.ptm-drag-handle {
-    color: var(--SmartThemeBodyColor, #aaa);
-    cursor: grab;
-    flex-shrink: 0;
-    font-size: 15px;
-    opacity: 0.5;
-    padding: 0 2px;
-    touch-action: none; /* required: lets Pointer Events fire on mobile instead of scroll */
-    user-select: none;
-}
-.ptm-drag-handle:active { cursor: grabbing; }
-
-/* Effective state pill */
-.ptm-tstate {
-    border-radius: 3px;
-    flex-shrink: 0;
-    font-size: 10px;
-    font-weight: 700;
-    width: 24px;
-    min-width: 24px;
-    height: 18px;
-    box-sizing: border-box;
-    text-align: center;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-.ptm-ts-on  { background: rgba(90,184,130,0.2); color: #6dcc96; }
-.ptm-ts-off { background: rgba(200,200,200,0.1); color: #999;   }
-
-/* Override cycle button */
-.ptm-tovr {
-    flex-shrink: 0;
-    width: 28px;
-    min-width: 28px;
-    height: 18px;
-    box-sizing: border-box;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 0 2px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-.ptm-tovr-lock { background: rgba(150,150,150,0.2); color: #c0c0c0; }
-.ptm-tovr-on   { background: rgba(90,184,130,0.25);  color: #6dcc96; }
-.ptm-tovr-off  { background: rgba(184,90,90,0.25);   color: #d07070; }
-
-.ptm-tname {
-    flex: 1;
-    font-size: 12px;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Behavior button — 동일: gray, 반전: purple */
-.ptm-bsel {
-    flex-shrink: 0;
-    width: 28px;
-    min-width: 28px;
-    height: 18px;
-    box-sizing: border-box;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 0 2px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-.ptm-bsel-dir { background: rgba(150,150,150,0.2);  color: #c0c0c0; }
-.ptm-bsel-inv { background: rgba(122,100,220,0.25); color: #b0a0f0; }
-
-/* ──────────────────────────────────────────
-   Mover drawer
-────────────────────────────────────────── */
-.ptm-block { margin-bottom: 10px; }
-
-.ptm-label {
-    display: block;
-    font-size: 12px;
-    margin-bottom: 4px;
-    opacity: 0.7;
-}
-
-.ptm-lrow {
-    align-items: center;
-    display: flex;
     justify-content: space-between;
-    margin-bottom: 4px;
-}
-.ptm-lrow .ptm-label { margin-bottom: 0; }
-
-.ptm-sel {
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.05));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.12));
-    border-radius: 5px;
-    color: var(--SmartThemeBodyColor, #ddd);
-    font-size: 12px;
-    padding: 5px 8px;
-    width: 100%;
+    padding: 8px 12px 6px;
+    border-bottom: 1px solid #d8cef0;
+    background: #ede8f8;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
 }
 
-/* Prompt list (mover src/dst) */
-.ptm-list {
-    background: var(--SmartThemeBlurTintColor, rgba(0,0,0,0.15));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.08));
-    border-radius: 5px;
-    max-height: 200px;
-    overflow-y: auto;
-    padding: 4px;
+.qpl-header-title {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: inherit;
+    opacity: 0.65;
+    user-select: none;
+    white-space: nowrap;
 }
 
-.ptm-item {
-    align-items: center;
-    border-radius: 4px;
-    cursor: pointer;
+.qpl-header-actions {
     display: flex;
-    font-size: 12px;
-    gap: 6px;
-    padding: 4px 6px;
-    transition: background 0.1s;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+/* 헤더 버튼 공통 — 모두 28×26px으로 통일 */
+.qpl-view-btn,
+.qpl-theme-toggle-btn,
+.qpl-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 26px;
+    border-radius: 7px;
+    border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 30%, transparent);
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 8%, transparent);
+    color: inherit;
+    font-size: 0.82em;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.55;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.qpl-view-btn:hover,
+.qpl-theme-toggle-btn:hover,
+.qpl-edit-btn:hover {
+    opacity: 0.9;
+}
+
+/* 현재 활성 뷰 버튼 — color/bg/border는 --qpl-accent CSS 변수로 처리 */
+.qpl-view-btn.active {
+    opacity: 1;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
+    color: var(--qpl-accent, #8868c0);
+}
+
+/* 👤 버튼: 연결 없음=투명, 있음=CSS var accent */
+.qpl-char-btn          { background: transparent; }
+.qpl-char-btn.has-data {
+    opacity: 1;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
+    color: var(--qpl-accent, #8868c0);
+}
+
+/* ── 테마 선택 바 ── */
+
+.qpl-theme-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+    flex-shrink: 0;
+}
+
+/* ── 편집 완료 버튼 ── */
+
+.qpl-done-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid rgba(128,128,128,0.3);
+    border-radius: 6px;
+    color: inherit;
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 3px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+.qpl-done-btn:hover { opacity: 0.8; }
+
+/* ── 패널 컨테이너 (목록 + 상세) ── */
+
+.qpl-panels {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    max-height: calc(6 * 54px);
+    flex: 1;
+    min-height: 0;
+}
+
+/* 목록 패널 — 분할 시 45% 고정 */
+.qpl-panels:not(.detail-only) .qpl-list {
+    flex: 0 0 45%;
+    max-width: 45%;
+    border-right: 1px solid rgba(128,128,128,0.12);
+}
+
+/* detail-only 모드에서 목록 숨김 */
+.qpl-panels.detail-only .qpl-list {
+    display: none;
+}
+
+/* ── 스크롤 목록 ── */
+
+.qpl-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 0;
+    position: relative;
+}
+
+.qpl-list::-webkit-scrollbar        { width: 4px; }
+.qpl-list::-webkit-scrollbar-track  { background: transparent; }
+.qpl-list::-webkit-scrollbar-thumb  { background: #c4b8e0; border-radius: 4px; }
+
+/* ── 힌트 ── */
+
+.qpl-hint {
+    padding: 6px 14px 8px;
+    font-size: 0.76em;
+    color: inherit;
+    opacity: 0.55;
+    user-select: none;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    transition: border-color 0.15s;
+}
+
+/* 목록이 비어있을 때 힌트가 첫 요소면 위쪽 구분선 없앰 */
+.qpl-list > .qpl-hint:first-child { border-top: none; }
+
+.qpl-hint i { color: #c0a030; margin-right: 4px; }
+
+/* ── 페르소나 행 ── */
+
+.qpl-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 10px;
+    margin: 1px 4px;
+    border-radius: 8px;
+    cursor: default;
+    transition: background 0.12s;
+    position: relative;
+    box-sizing: border-box;
+    background: transparent;
+}
+
+.qpl-row:hover      { background: rgba(120,100,180,0.08); }
+.qpl-row.qpl-active { /* background set by JS */ }
+
+.qpl-row.qpl-active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 20%; bottom: 20%;
+    width: 2px;
+    background: var(--qpl-active-bar, rgba(136,104,192,0.6));
+    opacity: 0.6;
+    border-radius: 2px;
+}
+
+/* ── 드래그 핸들 ── */
+
+.qpl-row.qpl-edit-mode { touch-action: pan-y; }
+
+.qpl-drag-handle {
+    flex-shrink: 0;
+    width: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    opacity: 0.4;
+    cursor: grab;
+    font-size: 0.75em;
+    touch-action: none;
+    padding: 4px 0;
     user-select: none;
 }
-.ptm-item:hover     { background: rgba(255,255,255,0.07); }
-.ptm-item-off       { opacity: 0.45; }
-.ptm-item.ptm-chked { background: rgba(122,111,255,0.12); }
+.qpl-drag-handle:active { cursor: grabbing; }
 
-.ptm-num  { color: #888; flex-shrink: 0; font-size: 11px; min-width: 30px; }
-.ptm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ── 아바타 ── */
 
-/* Slot (insert position) */
-.ptm-slot {
-    border-radius: 3px;
-    color: #666;
+.qpl-avatar-wrap {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
     cursor: pointer;
-    font-size: 11px;
-    padding: 1px 6px;
-    text-align: center;
-    transition: background 0.1s, color 0.1s;
 }
-.ptm-slot:hover   { background: rgba(109,219,158,0.15); color: #6ddb9e; }
-.ptm-slot-on      { background: rgba(109,219,158,0.25); color: #6ddb9e; }
+.qpl-edit-mode .qpl-avatar-wrap { cursor: default; }
 
-.ptm-ditem {
-    border-radius: 3px;
-    display: flex;
-    font-size: 12px;
-    gap: 6px;
-    padding: 3px 6px;
-}
-.ptm-ditem.ptm-item-off { opacity: 0.45; }
-
-/* Group-after-copy block */
-.ptm-gblock { padding-top: 4px; }
-.ptm-grow {
-    align-items: flex-start;
-    cursor: pointer;
-    display: flex;
-    font-size: 12px;
-    gap: 8px;
+.qpl-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+    border: 1px solid rgba(128,128,128,0.25);
+    outline: 2px solid transparent;
+    transition: outline-color 0.15s;
 }
 
-.ptm-tinput {
-    background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.06));
-    border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.12));
-    border-radius: 4px;
-    color: var(--SmartThemeBodyColor, #eee);
-    font-size: 12px;
-    padding: 5px 8px;
-    width: 100%;
-}
+.qpl-avatar.qpl-default         { outline-color: #c084b0; }
+body.square-avatars .qpl-avatar { border-radius: 4px; }
+body.big-avatars .qpl-avatar    { width: 46px; height: 46px; }
+body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 
-.ptm-info {
-    border-radius: 5px;
-    color: var(--SmartThemeBodyColor, #bbb);
-    font-size: 11px;
-    margin-bottom: 8px;
-    opacity: 0.65;
-    padding: 4px 6px;
-    text-align: center;
-}
+/* ── 이름 + 태그 ── */
 
-.ptm-brow {
-    display: flex;
-    gap: 8px;
-}
-.ptm-btn {
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+.qpl-info {
     flex: 1;
-    font-size: 13px;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    overflow: hidden;
+}
+.qpl-edit-mode .qpl-info { cursor: default; }
+
+.qpl-name {
+    font-size: 0.88em;
     font-weight: 600;
-    padding: 7px 0;
-    transition: filter 0.15s;
-}
-.ptm-btn:disabled { cursor: not-allowed; filter: grayscale(0.6); opacity: 0.45; }
-.ptm-btn:not(:disabled):hover { filter: brightness(1.15); }
-.ptm-btn-copy { background: #4a82bb; color: #eee; }
-.ptm-btn-move { background: #6358cc; color: #eee; }
-
-/* ═══════════════════════════════════════════════════════
-   PPC popup — scoped overrides
-   (main popup and sub-popup use inline styles mostly;
-    these rules cover edge cases and scrollbar styling)
-   ═══════════════════════════════════════════════════════ */
-
-#ppc-popup,
-#ppc-sub {
-    box-sizing: border-box;
-    font-family: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    flex-shrink: 0;
+    max-width: 50%;
+    color: inherit;
 }
 
-/* Thin scrollbar for sub-popup content */
-#ppc-sub::-webkit-scrollbar       { width: 4px; }
-#ppc-sub::-webkit-scrollbar-track { background: transparent; }
-#ppc-sub::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
+.qpl-tag {
+    flex-shrink: 1;
+    min-width: 0;
+    font-size: 0.56em;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
+    border: none;
+    border-radius: 4px;
+    padding: 0px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.65;
+    color: var(--qpl-accent, #8868c0);
+    opacity: 0.8;
+}
 
-/* ──────────────────────────────────────────
-   Add-toggle modal: neutralize ST global
-   checkbox CSS that breaks vertical alignment
-────────────────────────────────────────── */
-#ptm-mlist label {
-    display: flex !important;
-    align-items: center !important;
+/* ── 행 액션 버튼 그룹 (⭐ 👤 📌) ── */
+
+.qpl-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.qpl-row:hover .qpl-row-actions { opacity: 1; }
+
+/* active 버튼 있으면 그룹 항상 표시 */
+.qpl-row:has(.qpl-row-fav-btn.active) .qpl-row-actions,
+.qpl-row:has(.qpl-row-char-btn.active) .qpl-row-actions,
+.qpl-row:has(.qpl-pin-btn.active) .qpl-row-actions { opacity: 1; }
+
+.qpl-row-fav-btn,
+.qpl-row-char-btn,
+.qpl-pin-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 4px 5px;
+    border-radius: 5px;
+    font-size: 0.8em;
+    line-height: 1;
+    opacity: 0.3;
+    transition: background 0.12s, opacity 0.12s;
+}
+
+.qpl-row-fav-btn:hover,
+.qpl-row-char-btn:hover,
+.qpl-pin-btn:hover { opacity: 1; background: rgba(120,100,180,0.10); }
+
+/* active 상태 고정색 */
+.qpl-row-fav-btn.active  { opacity: 1 !important; color: #e0a800 !important; }
+.qpl-row-char-btn.active { opacity: 1 !important; color: #8868c0 !important; }
+.qpl-pin-btn.active      { opacity: 1 !important; /* color: JS accent */ }
+
+/* ── 즐겨찾기 별 (페르소나 패널) ── */
+
+.qpl-fav-star {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 0.78em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    color: #bbb;
+    padding: 0;
+    line-height: 1;
+}
+
+.qpl-fav-star.active                                  { opacity: 1 !important; color: #e0a800 !important; }
+.avatar-container[data-avatar-id]:hover .qpl-fav-star { opacity: 0.6; }
+.qpl-fav-star:hover                                   { opacity: 1 !important; color: #e0a800 !important; }
+
+/* ── 캐릭터 연결 버튼 👤 (페르소나 패널) ── */
+
+.qpl-char-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 0.78em;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    color: #bbb;
+    padding: 0;
+    line-height: 1;
+}
+
+.qpl-char-link-btn.active                                  { opacity: 1 !important; color: #8868c0 !important; }
+.avatar-container[data-avatar-id]:hover .qpl-char-link-btn { opacity: 0.6; }
+.qpl-char-link-btn:hover                                   { opacity: 1 !important; color: #8868c0 !important; }
+
+/* ── 상세 패널 ── */
+
+.qpl-detail {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.qpl-detail::-webkit-scrollbar        { width: 4px; }
+.qpl-detail::-webkit-scrollbar-track  { background: transparent; }
+.qpl-detail::-webkit-scrollbar-thumb  { background: #c4b8e0; border-radius: 4px; }
+
+.qpl-detail-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 10px 12px;
+    gap: 7px;
+}
+
+.qpl-detail-empty {
+    padding: 24px;
+    text-align: center;
+    opacity: 0.35;
+    font-size: 0.82em;
+}
+
+/* 아바타 */
+.qpl-detail-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: transform 0.12s;
+}
+.qpl-detail-avatar-wrap:hover { transform: scale(1.04); }
+.qpl-detail-avatar-wrap.qpl-detail-active::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid var(--qpl-accent, #8868c0);
+    pointer-events: none;
+}
+
+.qpl-detail-avatar {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: center;
+    border: 1px solid rgba(128,128,128,0.25);
+    display: block;
+}
+
+body.square-avatars .qpl-detail-avatar,
+body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
+
+/* 이름 행 */
+.qpl-detail-name-row,
+.qpl-detail-tag-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.qpl-detail-name {
+    font-size: 0.92em;
+    font-weight: 700;
+    text-align: center;
+    color: inherit;
+    word-break: break-all;
     line-height: 1.3;
 }
 
-/* ST themes often add margin-top / position:relative to checkboxes;
-   override here so the circle sits exactly on the flex centre line */
-#ptm-mlist label input[type="checkbox"] {
-    margin: 0 !important;
-    padding: 0 !important;
-    flex-shrink: 0 !important;
-    align-self: center !important;
-    position: static !important;
-    top: auto !important;
-    transform: none !important;
+input.qpl-detail-name {
+    font-size: 0.88em;
+    font-weight: 700;
+    text-align: center;
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 6%, transparent);
+    color: inherit;
+    padding: 3px 8px;
+    outline: none;
 }
+
+/* 태그 */
+.qpl-detail-tag {
+    font-size: 0.6em;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
+    border-radius: 4px;
+    padding: 1px 8px;
+    color: var(--qpl-accent, #8868c0);
+    opacity: 0.85;
+    text-align: center;
+}
+
+.qpl-detail-tag.qpl-detail-empty-val { opacity: 0.3; }
+
+input.qpl-detail-tag-input {
+    font-size: 0.7em;
+    text-align: center;
+    width: 100%;
+    border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 6%, transparent);
+    color: inherit;
+    padding: 2px 8px;
+    outline: none;
+}
+
+/* 내용 */
+.qpl-detail-desc-wrap {
+    width: 100%;
+}
+
+.qpl-detail-desc {
+    font-size: 0.74em;
+    color: inherit;
+    opacity: 0.75;
+    line-height: 1.55;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 80px;
+    overflow-y: auto;
+    padding: 3px 2px;
+}
+.qpl-detail-desc::-webkit-scrollbar        { width: 3px; }
+.qpl-detail-desc::-webkit-scrollbar-track  { background: transparent; }
+.qpl-detail-desc::-webkit-scrollbar-thumb  { background: #c4b8e0; border-radius: 3px; }
+
+.qpl-detail-desc.qpl-detail-desc-empty { opacity: 0.3; font-style: italic; text-align: center; }
+
+textarea.qpl-detail-textarea {
+    width: 100%;
+    min-height: 72px;
+    max-height: 120px;
+    font-size: 0.74em;
+    line-height: 1.5;
+    color: inherit;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
+    border-radius: 6px;
+    padding: 5px 7px;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* 저장/취소 바 */
+.qpl-detail-edit-bar {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+
+.qpl-detail-save-btn,
+.qpl-detail-cancel-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 0;
+    border-radius: 6px;
+    font-size: 0.72em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.12s;
+}
+.qpl-detail-save-btn {
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
+    color: var(--qpl-accent, #8868c0);
+}
+.qpl-detail-cancel-btn {
+    background: rgba(128,128,128,0.08);
+    border: 1px solid rgba(128,128,128,0.25);
+    color: inherit;
+    opacity: 0.6;
+}
+.qpl-detail-save-btn:hover   { opacity: 0.8; }
+.qpl-detail-cancel-btn:hover { opacity: 1; }
+
+/* 액션 버튼 그룹 */
+.qpl-detail-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.qpl-detail-btn,
+.qpl-detail-edit-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 10px;
+    border-radius: 7px;
+    border: 1px solid rgba(128,128,128,0.15);
+    background: rgba(128,128,128,0.04);
+    color: inherit;
+    font-size: 0.76em;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.12s, background 0.12s;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.qpl-detail-btn:hover,
+.qpl-detail-edit-toggle-btn:hover { opacity: 0.85; background: color-mix(in srgb, var(--qpl-accent, #8868c0) 8%, transparent); }
+
+.qpl-detail-edit-toggle-btn { color: var(--qpl-accent, #8868c0); opacity: 0.65; }
+
+.qpl-detail-btn.active {
+    opacity: 1;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
+    color: var(--qpl-accent, #8868c0);
+}
+
+/* 즐겨찾기 활성 시 노란색 고정 */
+.qpl-detail-fav-btn.active {
+    color: #e0a800 !important;
+    border-color: rgba(224,168,0,0.3) !important;
+    background: rgba(224,168,0,0.08) !important;
+}
+
+
