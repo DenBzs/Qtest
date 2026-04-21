@@ -3,7 +3,7 @@
  * ⚠️ Extension-QuickPersona와 동시 사용 불가
  */
 
-import { animation_duration, eventSource, event_types, getThumbnailUrl, getRequestHeaders } from '../../../../script.js';
+import { animation_duration, eventSource, event_types, getThumbnailUrl } from '../../../../script.js';
 import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
 import { Popper } from '../../../../lib.js';
@@ -44,29 +44,36 @@ function applyQplTheme(key) {
     menu.style.background = t.bg;
     menu.style.borderColor = t.border;
     menu.style.color = t.text;
+    // CSS 변수로 accent 설정 → .qpl-view-btn.active, .qpl-tag, .qpl-char-btn.has-data 등이 자동 적용
     menu.style.setProperty('--qpl-accent', t.accent);
+    // header border + background
     const header = menu.querySelector('.qpl-header');
     if (header) {
         header.style.borderBottomColor = t.border;
         header.style.backgroundColor   = t.sub;
     }
+    // 핀 버튼 active → accent 색 (CSS var 미지원 구형 방어)
     menu.querySelectorAll('.qpl-pin-btn.active').forEach(btn => {
         btn.style.color = t.accent;
     });
+    // hint border
     const hint = menu.querySelector('.qpl-hint');
     if (hint) hint.style.borderTopColor = t.border;
     menu.dataset.theme = key;
+    // done-btn
     const doneBtn = menu.querySelector('.qpl-done-btn');
     if (doneBtn) {
         doneBtn.style.background    = t.accent + '22';
         doneBtn.style.borderColor   = t.accent + '99';
         doneBtn.style.color         = t.accent;
     }
+    // theme bar buttons
     menu.querySelectorAll('.qpl-theme-btn').forEach(btn => {
         const active = btn.dataset.theme === key;
         btn.style.opacity   = active ? '1' : '0.4';
         btn.style.transform = active ? 'scale(1.2)' : 'scale(1)';
     });
+    // active row 배경 갱신
     menu.querySelectorAll('.qpl-row.qpl-active').forEach(row => {
         row.style.background = t.accent + '18';
         row.style.setProperty('--qpl-active-bar', t.accent);
@@ -76,10 +83,10 @@ function applyQplTheme(key) {
 /** @type {Popper.Instance|null} */
 let popper = null;
 let isOpen = false;
-let _isOpening = false;
-let currentView = 'all';
-let _allAvatars  = [];
-let _tapTimer    = null;
+let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
+let currentView = 'all'; // 'all' | 'fav' | 'char'
+let _allAvatars  = [];    // openMenu에서 캐시, 뷰 전환 시 재사용
+let _tapTimer    = null;  // 더블탭 타이머 (모듈 레벨로 closeMenu 시 정리)
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 function getSettings() {
@@ -122,6 +129,7 @@ function getSortedFavorites(allAvatars) {
             ...favAvatars.filter(id => !order.includes(id)),
         ];
     }
+    // 기본: 이름순
     return favAvatars.sort((a, b) => {
         const na = (power_user.personas?.[a] || a).toLowerCase();
         const nb = (power_user.personas?.[b] || b).toLowerCase();
@@ -164,6 +172,7 @@ async function toggleChatLock(avatarId) {
     }
 }
 
+// 메뉴 내 모든 핀 버튼 상태 갱신
 function refreshPinButtons() {
     const locked = getLockedPersona();
     const t = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
@@ -177,6 +186,7 @@ function refreshPinButtons() {
             .attr('title', isLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
             .find('i').attr('class', `fa-${isLocked ? 'solid' : 'regular'} fa-thumbtack`);
     });
+    // 상세 패널 핀 버튼도 동기화
     const $detailPinBtn = $('#qplMenu .qpl-detail-inner .qpl-detail-pin-btn');
     if ($detailPinBtn.length) {
         const detailId = $('#qplMenu .qpl-detail-inner').attr('data-avatar');
@@ -184,7 +194,7 @@ function refreshPinButtons() {
             const isLocked = locked === detailId;
             $detailPinBtn.toggleClass('active', isLocked)
                 .attr('title', isLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
-                .find('i').attr('class', `fa-${isLocked ? 'solid' : 'regular'} fa-thumbtack`);
+                .find('i').attr('class', `fa-${isLocked ? 'solid' : 'regular'} fa-square-check`);
         }
     }
 }
@@ -215,15 +225,18 @@ function toggleCharPersona(charId, avatarId) {
     const idx = arr.indexOf(avatarId);
     if (idx >= 0) arr.splice(idx, 1);
     else arr.push(avatarId);
+    // 빈 배열이 되면 키 삭제
     if (arr.length === 0) delete s.charPersonas[charId];
     saveSettings();
 }
 
+// 캐릭터 뷰 버튼 활성 여부 갱신
 function refreshCharViewBtn() {
     const charId = getCurrentCharId();
     const has = charId ? getCharPersonas(charId).length > 0 : false;
     $('#qplMenu .qpl-char-btn').toggleClass('has-data', has);
 }
+
 
 function getImageUrl(avatarId) {
     if (supportsPersonaThumbnails) return getThumbnailUrl('persona', avatarId, true);
@@ -245,6 +258,7 @@ function addQuickPersonaButton() {
     $('#qplBtn').on('click', () => toggleMenu());
 }
 
+// [fix-7] setTimeout 중복 누적 방지: debounce 패턴으로 교체
 let _updateButtonTimer = null;
 function updateButtonState() {
     clearTimeout(_updateButtonTimer);
@@ -289,9 +303,6 @@ async function openMenu() {
                         <button class="qpl-view-btn qpl-detail-btn active" title="현재 페르소나 정보">
                             <i class="fa-solid fa-id-card"></i>
                         </button>
-                        <button class="qpl-view-btn qpl-add-btn" title="새 페르소나 추가">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
                         <button class="qpl-view-btn qpl-all-btn" title="전체 목록">
                             <i class="fa-solid fa-masks-theater"></i>
                         </button>
@@ -311,8 +322,9 @@ async function openMenu() {
             </div>
         `);
 
+        // 초기 상세 뷰 렌더 (현재 적용된 페르소나)
         renderDetailView($menu.find('.qpl-detail'), user_avatar);
-
+        // 테마 바 구성
         const $bar = $menu.find('.qpl-theme-bar');
         Object.entries(QPL_THEMES).forEach(([key, t]) => {
             const $btn = $(`<button class="qpl-theme-btn" data-theme="${key}" title="${t.name}"
@@ -321,6 +333,7 @@ async function openMenu() {
             $bar.append($btn);
         });
 
+        // 테마 토글
         $menu.find('.qpl-theme-toggle-btn').on('click', e => {
             e.stopPropagation();
             $menu.find('.qpl-theme-bar').toggle();
@@ -332,13 +345,6 @@ async function openMenu() {
             e.stopPropagation();
             if (currentView === 'detail') return;
             switchToDetailView(user_avatar);
-        });
-
-        // ➕ 추가 버튼
-        $menu.find('.qpl-add-btn').on('click', e => {
-            e.stopPropagation();
-            if (currentView === 'create') return;
-            switchToCreateView();
         });
 
         // 🎭 전체 목록 버튼
@@ -397,6 +403,7 @@ async function openMenu() {
             e.stopPropagation();
             enterEditMode(_allAvatars);
         });
+        // 전체 탭이 기본이므로 편집 버튼 숨김
         $menu.find('.qpl-edit-btn').hide();
 
         $menu.css({ visibility: 'hidden', display: 'block' });
@@ -419,6 +426,7 @@ async function openMenu() {
         $menu.css({ visibility: '', display: 'none' }).fadeIn(animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
 
+        // [fix] 키보드 내릴 때 창 이동 방지 — visualViewport 크기 변화 시 Popper 재고정
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', _onViewportResize);
         }
@@ -427,42 +435,27 @@ async function openMenu() {
     }
 }
 
-// ─── [이슈2] 키보드 올라올 때 메뉴 위치 조정 ──────────────────────────────────
 function _onViewportResize() {
-    const vv = window.visualViewport;
-    const menu = document.getElementById('qplMenu');
-    if (!menu || !vv) { if (popper) popper.update(); return; }
-
-    // keyboard height: window.innerHeight에서 visual viewport 영역 빼기
-    const kbHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-
-    if (kbHeight > 50) {
-        // 키보드 열려있음 → Popper 무시하고 키보드 바로 위에 고정
-        const menuH = menu.offsetHeight;
-        const newTop = vv.offsetTop + vv.height - menuH - 6;
-        menu.style.setProperty('top', `${Math.max(4, newTop)}px`, 'important');
-        menu.style.removeProperty('bottom');
-        menu.style.setProperty('left', `${Math.max(4, (vv.width - menu.offsetWidth) / 2)}px`, 'important');
-        menu.style.removeProperty('transform');
-    } else {
-        // 키보드 숨겨짐 → Popper에게 위치 제어 반환
-        menu.style.removeProperty('top');
-        menu.style.removeProperty('left');
-        menu.style.removeProperty('bottom');
-        menu.style.removeProperty('transform');
-        requestAnimationFrame(() => { if (popper) popper.update(); });
+    if (popper) {
+        requestAnimationFrame(() => popper.update());
     }
 }
 
 function closeMenu() {
     if (!isOpen) return;
     isOpen = false;
+
+    // 드래그 중 메뉴가 닫히면 body에 남은 ghost 정리
     $(document.body).children('.qpl-dragging').remove();
+
     $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
     if (popper) { popper.destroy(); popper = null; }
+
+    // visualViewport 리스너 정리
     if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', _onViewportResize);
     }
+    // 더블탭 타이머 정리
     if (_tapTimer) { clearTimeout(_tapTimer); _tapTimer = null; }
 }
 
@@ -479,29 +472,18 @@ function switchToDetailView(avatarId) {
     requestAnimationFrame(() => { if (popper) popper.update(); });
 }
 
-function switchToCreateView() {
-    currentView = 'create';
-    const $menu = $('#qplMenu');
-    $menu.find('.qpl-view-btn').removeClass('active');
-    $menu.find('.qpl-add-btn').addClass('active');
-    $menu.find('.qpl-edit-btn').hide();
-    $menu.find('.qpl-list').hide();
-    $menu.find('.qpl-detail').show();
-    renderCreateView($menu.find('.qpl-detail'));
-    requestAnimationFrame(() => { if (popper) popper.update(); });
-}
-
 function switchToListView($menu) {
     $menu.find('.qpl-detail').hide();
     $menu.find('.qpl-list').show();
 }
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
+// [이슈 3] 이름 카테고리 분류: 0=특수문자, 1=한글, 2=영어
 function getNameCategory(name) {
     const ch = (name || '')[0] || '';
     if (/[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/.test(ch)) return 1;
     if (/[a-zA-Z]/.test(ch)) return 2;
-    return 0;
+    return 0; // 특수문자/기타
 }
 
 function sortAvatars(avatarIds) {
@@ -537,11 +519,14 @@ function renderCharView($list, charId) {
     personaIds.forEach(id => $list.append(createRow(id, false)));
 }
 
-// ─── [이슈4] 페르소나 아바타(프사) 변경 ───────────────────────────────────────
+// ─── 페르소나 아바타(프사) 변경 ───────────────────────────────────────────────
 async function changePersonaAvatar(avatarId, $inner) {
     return new Promise((resolve) => {
         const $fileInput = $('<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">');
         $('body').append($fileInput);
+
+        // file input 클릭이 body click.qpl 핸들러로 버블링되어 메뉴가 닫히는 것을 방지
+        $fileInput.on('click', e => e.stopPropagation());
 
         $fileInput.on('change', async function () {
             const file = this.files?.[0];
@@ -550,24 +535,12 @@ async function changePersonaAvatar(avatarId, $inner) {
 
             try {
                 const formData = new FormData();
-                formData.append('avatar', file, avatarId);
-                // overwrite_name: 덮어쓸 기존 아바타 파일명 지정 (ST API 정상 필드명)
-                formData.append('overwrite_name', avatarId);
+                formData.append('avatar', file);
+                formData.append('overwrite_avatar', avatarId);
 
-                // getRequestHeaders에서 Content-Type 제거 (FormData boundary 자동 설정)
-                const headers = {};
-                try {
-                    const base = getRequestHeaders();
-                    Object.assign(headers, base);
-                    delete headers['Content-Type'];
-                } catch {}
-
-                const resp = await fetch('/api/avatars/upload', {
-                    method: 'POST',
-                    headers,
-                    body: formData,
-                });
+                const resp = await fetch('/uploaduseravatar', { method: 'POST', body: formData });
                 if (resp.ok) {
+                    // 캐시 무효화 파라미터로 이미지 즉시 갱신
                     const base = getImageUrl(avatarId);
                     const bust = base + (base.includes('?') ? '&' : '?') + '_t=' + Date.now();
                     $inner.find('.qpl-detail-avatar').attr('src', bust);
@@ -588,13 +561,11 @@ async function changePersonaAvatar(avatarId, $inner) {
             }
         });
 
-        $fileInput.trigger('click');
+        $fileInput[0].click();
     });
 }
 
-// ─── [이슈3] 상세 정보 패널 렌더 ─────────────────────────────────────────────
-// 레이아웃: [💾 수정 내용 저장] | [프사] | [⭐👤📍]
-// ✔️ 적용 버튼 제거
+// ─── 상세 정보 패널 렌더 ─────────────────────────────────────────────────────
 function renderDetailView($container, avatarId) {
     if (!avatarId) {
         $container.html(`<div class="qpl-detail-empty">적용된 페르소나 없음</div>`);
@@ -617,12 +588,11 @@ function renderDetailView($container, avatarId) {
     $container.html(`
         <div class="qpl-detail-inner" data-avatar="${safeId}">
 
-            <!-- 상단: [💾 수정 내용 저장] [프사] [⭐👤📍] -->
+            <!-- 상단: [💾 수정 내용 저장] [프사] [⭐👤📍] 3열 배열 -->
             <div class="qpl-detail-top">
                 <div class="qpl-detail-left-col">
-                    <button class="qpl-detail-save-btn" title="수정 내용 저장">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        <span>수정 내용 저장</span>
+                    <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="수정 저장">
+                        <i class="fa-solid fa-floppy-disk"></i><span>수정 내용 저장</span>
                     </button>
                 </div>
                 <div class="qpl-detail-avatar-wrap${isActive ? ' qpl-detail-active' : ''}" title="클릭하여 프로필 이미지 변경">
@@ -644,10 +614,8 @@ function renderDetailView($container, avatarId) {
 
             <!-- 편집 필드 -->
             <div class="qpl-detail-fields">
-                <input class="qpl-detail-name-input" type="text" value="${DOMPurify.sanitize(name)}" placeholder="이름"
-                    autocomplete="new-password" inputmode="text" />
-                <input class="qpl-detail-tag-input" type="text" value="${DOMPurify.sanitize(tagText)}" placeholder="태그 (선택)"
-                    autocomplete="new-password" inputmode="text" />
+                <div class="qpl-detail-name-display">${DOMPurify.sanitize(name)}</div>
+                <input class="qpl-detail-tag-input" type="text" value="${DOMPurify.sanitize(tagText)}" placeholder="태그 (선택)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" inputmode="search" />
                 <textarea class="qpl-detail-textarea" placeholder="페르소나 내용">${DOMPurify.sanitize(content)}</textarea>
             </div>
         </div>
@@ -655,12 +623,12 @@ function renderDetailView($container, avatarId) {
 
     const $inner = $container.find('.qpl-detail-inner');
 
-    // 아바타 클릭 → 프사 변경
+    // 아바타 클릭 → 프사 변경 (이슈 5)
     $inner.find('.qpl-detail-avatar-wrap').on('click', async () => {
         await changePersonaAvatar(avatarId, $inner);
     });
 
-    // ⭐ 즐겨찾기
+    // ✔ 즐겨찾기
     $inner.find('.qpl-detail-fav-btn').on('click', e => {
         e.stopPropagation();
         toggleFavorite(avatarId);
@@ -674,7 +642,7 @@ function renderDetailView($container, avatarId) {
             .toggleClass('active', now).find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
     });
 
-    // 👤 캐릭터 고정
+    // ✔ 캐릭터 고정
     $inner.find('.qpl-detail-char-btn').on('click', e => {
         e.stopPropagation();
         const cid = getCurrentCharId();
@@ -691,7 +659,7 @@ function renderDetailView($container, avatarId) {
             .toggleClass('active', now).find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
     });
 
-    // 📌 채팅방 고정
+    // ✔ 채팅방 고정
     $inner.find('.qpl-detail-pin-btn').on('click', async e => {
         e.stopPropagation();
         await toggleChatLock(avatarId);
@@ -701,37 +669,38 @@ function renderDetailView($container, avatarId) {
             .find('i').attr('class', `fa-${nowLocked ? 'solid' : 'regular'} fa-thumbtack`);
     });
 
-    // ─── [이슈1] 💾 수정 내용 저장 ───────────────────────────────────────────
+    // ✔ 현재 채팅방에 적용 (이슈 7)
+    $inner.find('.qpl-detail-apply-btn').on('click', async e => {
+        e.stopPropagation();
+        await setUserAvatar(avatarId);
+        updateButtonState();
+        $inner.find('.qpl-detail-avatar-wrap').addClass('qpl-detail-active');
+        $inner.find('.qpl-detail-apply-btn').addClass('active');
+        const tApply = QPL_THEMES[getQplTheme()] || QPL_THEMES.lavender;
+        $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
+        const $activeRow = $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"]`);
+        $activeRow.addClass('qpl-active').css('background', tApply.accent + '18');
+        $activeRow[0]?.style.setProperty('--qpl-active-bar', tApply.accent);
+        toastr.success(`"${name}" 페르소나를 적용했습니다.`);
+    });
+
+    // 💾 저장
     $inner.find('.qpl-detail-save-btn').on('click', async e => {
         e.stopPropagation();
-        const newName    = $inner.find('.qpl-detail-name-input').val().trim();
         const newTag     = $inner.find('.qpl-detail-tag-input').val().trim();
         const newContent = $inner.find('.qpl-detail-textarea').val();
 
-        if (newName) {
-            if (!power_user.personas) power_user.personas = {};
-            power_user.personas[avatarId] = newName;
-        }
         if (!power_user.persona_descriptions) power_user.persona_descriptions = {};
         if (!power_user.persona_descriptions[avatarId]) power_user.persona_descriptions[avatarId] = {};
         power_user.persona_descriptions[avatarId].title       = newTag;
         power_user.persona_descriptions[avatarId].description = newContent;
-
-        // ST 전체 설정 즉시 저장
-        try {
-            const ctx = SillyTavern.getContext();
-            if (typeof ctx.saveSettings === 'function') {
-                ctx.saveSettings();
-            } else {
-                ctx.saveSettingsDebounced();
-            }
-        } catch { try { SillyTavern.getContext().saveSettingsDebounced(); } catch {} }
-
-        const displayName = newName || name;
+        // ST 전체 설정 저장 (power_user 포함)
+        try { SillyTavern.getContext().saveSettingsDebounced(); } catch {}
 
         // QPL 목록 행 동기화
+        const displayName = newName || name;
         const $row = $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"]`);
-        $row.find('.qpl-name').text(displayName);
+        $row.find('.qpl-name').text(name);
         if (newTag) {
             if ($row.find('.qpl-tag').length) $row.find('.qpl-tag').text(newTag).show();
             else $row.find('.qpl-info').append(`<span class="qpl-tag">${newTag}</span>`);
@@ -739,64 +708,24 @@ function renderDetailView($container, avatarId) {
             $row.find('.qpl-tag').hide();
         }
 
-        // ST 페르소나 패널 DOM 동기화 — 목록 항목 이름 갱신
-        $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`).each(function () {
-            $(this).find('.ch_name, .name_text, .persona_name, span.ch_name').text(displayName);
-            $(this).attr('title', displayName);
-            if (newTag) {
-                $(this).find('.ch_additional_info, .persona_description, .ch_description').text(newTag);
-            } else {
-                $(this).find('.ch_additional_info, .persona_description, .ch_description').text('');
-            }
-        });
-
-        // ST 네이티브 페르소나 편집 패널 input 즉시 반영
+        // ST 네이티브 페르소나 편집 패널 input/textarea 즉시 반영
         try {
-            const $nameInput  = $('#persona_name_input');
             const $descInput  = $('#persona_description_text, textarea[name="persona_description"]');
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
-            if ($nameInput.length)  $nameInput.val(displayName).trigger('input').trigger('change');
             if ($descInput.length)  $descInput.val(newContent).trigger('input').trigger('change');
             if ($titleInput.length) $titleInput.val(newTag).trigger('input').trigger('change');
         } catch (err) {
             console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
         }
 
-        // [이슈1] ST Current Persona 표시 이름 갱신
-        // — 현재 활성 페르소나인 경우만 처리
-        if (avatarId === user_avatar) {
-            try {
-                // ST 버전별 셀렉터 총망라
-                [
-                    '#user_avatar_block .avatar_name',
-                    '#user_avatar_block .ch_name',
-                    '#persona_name_block',
-                    '.selected_persona_name',
-                    '#current_persona_name',
-                    '.persona-name-display',
-                    '.persona_name_text',
-                    '#user-persona-block .name',
-                    '.user_persona_name',
-                ].forEach(sel => {
-                    try {
-                        const $el = $(sel);
-                        if ($el.length && $el.children().length === 0) $el.text(displayName);
-                    } catch {}
-                });
-
-                // #user_avatar_block 내 텍스트 노드만 가진 span 갱신
-                $('#user_avatar_block span').filter(function () {
-                    return $(this).children().length === 0 && $(this).text().trim().length > 0 && $(this).text().trim().length < 80;
-                }).first().text(displayName);
-            } catch (err) {
-                console.warn('[QPL] Current Persona 이름 갱신 실패:', err);
-            }
-        }
-
-        // SETTINGS_UPDATED → ST 자체 UI 리렌더 트리거
+        // ST SETTINGS_UPDATED 이벤트 emit
         try {
-            eventSource.emit(event_types.SETTINGS_UPDATED);
-        } catch {}
+            if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
+                eventSource.emit(event_types.SETTINGS_UPDATED);
+            }
+        } catch (err) {
+            console.warn('[QPL] ST settings 갱신 실패:', err);
+        }
 
         updateButtonState();
 
@@ -810,141 +739,10 @@ function renderDetailView($container, avatarId) {
         if (popper) popper.update();
     });
 
-    // 입력 중 MutationObserver 일시정지
-    $inner.find('.qpl-detail-name-input, .qpl-detail-tag-input, .qpl-detail-textarea')
+    // 입력 중 MutationObserver 일시정지 → 버벅임 방지
+    $inner.find('.qpl-detail-tag-input, .qpl-detail-textarea')
         .on('focus', () => pauseObserver())
         .on('blur',  () => resumeObserver());
-}
-
-// ─── [이슈5] 새 페르소나 추가 창 렌더 ────────────────────────────────────────
-function renderCreateView($container) {
-    $container.html(`
-        <div class="qpl-detail-inner qpl-create-inner">
-
-            <!-- 상단: [✔️ 페르소나 등록] [프사] [공백] -->
-            <div class="qpl-detail-top">
-                <div class="qpl-detail-left-col">
-                    <button class="qpl-detail-save-btn qpl-create-submit-btn" title="페르소나 등록">
-                        <i class="fa-solid fa-check"></i>
-                        <span>페르소나 등록</span>
-                    </button>
-                </div>
-                <div class="qpl-detail-avatar-wrap" title="클릭하여 이미지 선택 (선택)">
-                    <img class="qpl-detail-avatar" src="/img/ai4.png" alt="새 페르소나" />
-                    <div class="qpl-detail-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
-                </div>
-                <div class="qpl-detail-right-col"></div>
-            </div>
-
-            <!-- 편집 필드 -->
-            <div class="qpl-detail-fields">
-                <input class="qpl-detail-name-input" type="text" placeholder="이름 (필수)"
-                    autocomplete="new-password" inputmode="text" />
-                <input class="qpl-detail-tag-input" type="text" placeholder="태그 (선택)"
-                    autocomplete="new-password" inputmode="text" />
-                <textarea class="qpl-detail-textarea" placeholder="페르소나 내용 (선택)"></textarea>
-            </div>
-        </div>
-    `);
-
-    const $inner = $container.find('.qpl-detail-inner');
-    let _pendingFile = null;
-
-    // 프사 영역 클릭 → 이미지 선택
-    $inner.find('.qpl-detail-avatar-wrap').on('click', () => {
-        const $fileInput = $('<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">');
-        $('body').append($fileInput);
-        $fileInput.on('change', function () {
-            const file = this.files?.[0];
-            $fileInput.remove();
-            if (!file) return;
-            _pendingFile = file;
-            const reader = new FileReader();
-            reader.onload = evt => $inner.find('.qpl-detail-avatar').attr('src', evt.target.result);
-            reader.readAsDataURL(file);
-        });
-        $fileInput.trigger('click');
-    });
-
-    // ✔️ 페르소나 등록
-    $inner.find('.qpl-create-submit-btn').on('click', async e => {
-        e.stopPropagation();
-
-        const name    = $inner.find('.qpl-detail-name-input').val().trim();
-        const tagText = $inner.find('.qpl-detail-tag-input').val().trim();
-        const content = $inner.find('.qpl-detail-textarea').val();
-
-        if (!name) { toastr.warning('이름을 입력해주세요.'); return; }
-
-        // 고유 아바타 ID 생성: "이름_타임스탬프.png"
-        const safeBase = name.replace(/[^a-zA-Z0-9가-힣]/g, '_').slice(0, 18);
-        const newId    = `${safeBase}_${Date.now()}.png`;
-
-        // 이미지 업로드 (선택한 경우에만)
-        if (_pendingFile) {
-            try {
-                const formData = new FormData();
-                formData.append('avatar', _pendingFile, newId);
-                formData.append('overwrite_name', newId);
-
-                const headers = {};
-                try {
-                    const base = getRequestHeaders();
-                    Object.assign(headers, base);
-                    delete headers['Content-Type'];
-                } catch {}
-
-                const resp = await fetch('/api/avatars/upload', {
-                    method: 'POST',
-                    headers,
-                    body: formData,
-                });
-                if (!resp.ok) {
-                    const text = await resp.text().catch(() => '');
-                    toastr.error('이미지 업로드 실패: ' + (text || resp.status));
-                    return;
-                }
-            } catch (err) {
-                console.error('[QPL] 아바타 생성 업로드 실패:', err);
-                toastr.error('이미지 업로드에 실패했습니다.');
-                return;
-            }
-        }
-
-        // power_user에 페르소나 등록
-        if (!power_user.personas) power_user.personas = {};
-        if (!power_user.persona_descriptions) power_user.persona_descriptions = {};
-        power_user.personas[newId] = name;
-        power_user.persona_descriptions[newId] = {
-            title:       tagText,
-            description: content,
-            position:    0,
-            depth:       0,
-            role:        'user',
-        };
-
-        try {
-            const ctx = SillyTavern.getContext();
-            if (typeof ctx.saveSettings === 'function') ctx.saveSettings();
-            else ctx.saveSettingsDebounced();
-        } catch { try { SillyTavern.getContext().saveSettingsDebounced(); } catch {} }
-
-        // 캐시에 추가
-        if (!_allAvatars.includes(newId)) _allAvatars.unshift(newId);
-
-        try { eventSource.emit(event_types.SETTINGS_UPDATED); } catch {}
-
-        toastr.success(`"${name}" 페르소나가 등록되었습니다.`);
-        switchToDetailView(newId);
-    });
-
-    // 입력 중 MutationObserver 일시정지
-    $inner.find('.qpl-detail-name-input, .qpl-detail-tag-input, .qpl-detail-textarea')
-        .on('focus', () => pauseObserver())
-        .on('blur',  () => resumeObserver());
-
-    // name input 자동 포커스
-    requestAnimationFrame(() => $inner.find('.qpl-detail-name-input').focus());
 }
 
 // ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
@@ -963,6 +761,7 @@ function enterEditMode(allAvatars) {
             <i class="fa-solid fa-check"></i> 편집 완료
         </button>
     `);
+    // done-btn에 테마 accent 색 즉시 적용
     requestAnimationFrame(() => applyQplTheme(getQplTheme()));
 
     const $list = $menu.find('.qpl-list');
@@ -976,6 +775,7 @@ function enterEditMode(allAvatars) {
             newOrder.push($(this).attr('data-avatar'));
         });
         if (isChar && charId) {
+            // 캐릭터 탭 순서 저장
             const s = getSettings();
             s.charPersonas[charId] = newOrder;
             saveSettings();
@@ -1004,9 +804,6 @@ function exitEditMode(allAvatars) {
             <button class="qpl-view-btn qpl-detail-btn${currentView === 'detail' ? ' active' : ''}" title="현재 페르소나 정보">
                 <i class="fa-solid fa-id-card"></i>
             </button>
-            <button class="qpl-view-btn qpl-add-btn${currentView === 'create' ? ' active' : ''}" title="새 페르소나 추가">
-                <i class="fa-solid fa-plus"></i>
-            </button>
             <button class="qpl-view-btn qpl-all-btn${currentView === 'all' ? ' active' : ''}" title="전체 목록">
                 <i class="fa-solid fa-masks-theater"></i>
             </button>
@@ -1030,11 +827,6 @@ function exitEditMode(allAvatars) {
         e.stopPropagation();
         if (currentView === 'detail') return;
         switchToDetailView(user_avatar);
-    });
-    $header.find('.qpl-add-btn').on('click', e => {
-        e.stopPropagation();
-        if (currentView === 'create') return;
-        switchToCreateView();
     });
     $header.find('.qpl-all-btn').on('click', e => {
         e.stopPropagation();
@@ -1090,9 +882,8 @@ function exitEditMode(allAvatars) {
 
     const $list = $menu.find('.qpl-list');
     const $editBtn = $menu.find('.qpl-edit-btn');
-    if (currentView === 'detail' || currentView === 'create') {
-        if (currentView === 'create') switchToCreateView();
-        else switchToDetailView(user_avatar);
+    if (currentView === 'detail') {
+        switchToDetailView(user_avatar);
     } else if (currentView === 'all') {
         $editBtn.hide();
         switchToListView($menu);
@@ -1121,10 +912,13 @@ function exitEditMode(allAvatars) {
     if (popper) popper.update();
 }
 
-// ─── 터치/마우스 드래그 ──────────────────────────────────────────────────────
+// ─── 터치/마우스 드래그 (QPM-style: in-container transform) ──────────────────
+// 행이 컨테이너 안에서 translateY로 움직임. 고스트 없음, body 탈출 없음.
+// handle에 setPointerCapture → 모바일 스크롤 충돌 방지.
 function setupTouchDrag($list) {
     const list = $list[0];
-    let drag = null;
+
+    let drag = null; // { el, fromIdx, currentIdx, rows, rowH }
 
     function getRows() {
         return [...list.querySelectorAll('.qpl-row')];
@@ -1204,8 +998,13 @@ function setupTouchDrag($list) {
         resetStyles(rows);
 
         if (currentIdx !== fromIdx) {
+            // Re-order DOM to match new position
             const parent = el.parentElement;
+            const siblings = [...parent.querySelectorAll('.qpl-row')];
+            // Remove and re-insert at new index
             parent.removeChild(el);
+            const ref = siblings[currentIdx] ?? null;
+            // Adjust ref since el was removed
             const adjustedSiblings = [...parent.querySelectorAll('.qpl-row')];
             const insertBefore = adjustedSiblings[currentIdx] ?? null;
             parent.insertBefore(el, insertBefore);
@@ -1264,16 +1063,19 @@ function createRow(avatarId, editMode = false) {
         </div>
     `);
 
+    // active row: 테마 accent 배경 + left bar CSS var
     if (isActive) {
         $row.css('background', t.accent + '18');
         $row[0].style.setProperty('--qpl-active-bar', t.accent);
     }
 
+    // active 색: 핀만 accent, 별/캐릭터는 CSS 고정색이 담당
     if (!editMode && locked) {
         $row.find('.qpl-pin-btn').css('color', t.accent);
     }
 
     if (!editMode) {
+        // [이슈 6] 길게 누르기(500ms) → 상세창 / 더블탭(300ms) → 페르소나 적용
         let _longPressTimer = null;
         let _pressStartX = 0, _pressStartY = 0;
 
@@ -1329,10 +1131,12 @@ function createRow(avatarId, editMode = false) {
             $(e.currentTarget).toggleClass('active', now)
                 .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
+            // 페르소나 패널 별 버튼 동기화
             $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-fav-star`)
                 .toggleClass('active', now)
                 .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
+            // 즐겨찾기 탭에서 해제하면 즉시 행 제거
             if (currentView === 'fav' && !now) {
                 $row.fadeOut(150, () => {
                     $row.remove();
@@ -1364,11 +1168,14 @@ function createRow(avatarId, editMode = false) {
             $(e.currentTarget).toggleClass('active', now)
                 .attr('title', now ? '캐릭터 연결 해제' : '현재 캐릭터에 연결')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
+            // 페르소나 패널 👤 버튼 동기화
             $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-char-link-btn`)
                 .toggleClass('active', now)
                 .attr('title', now ? '이 캐릭터 연결 해제' : '현재 캐릭터에 연결')
                 .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
+            // 헤더 👤 버튼 갱신
             refreshCharViewBtn();
+            // 캐릭터 탭에서 해제하면 즉시 행 제거
             if (currentView === 'char' && !now) {
                 $row.fadeOut(150, () => {
                     $row.remove();
@@ -1405,6 +1212,7 @@ function injectFavoriteStars() {
         const avatarId = $item.attr('data-avatar-id');
         if (!avatarId) return;
 
+        // ⭐ 즐겨찾기 버튼
         if (!$item.find('.qpl-fav-star').length) {
             const fav   = isFavorite(avatarId);
             const $star = $(`
@@ -1428,6 +1236,7 @@ function injectFavoriteStars() {
             else $item.append($star);
         }
 
+        // 👤 캐릭터 연결 버튼
         if (!$item.find('.qpl-char-link-btn').length) {
             const linked = charId ? isCharPersona(charId, avatarId) : false;
             const $link  = $(`
@@ -1438,6 +1247,7 @@ function injectFavoriteStars() {
             `);
             $link.on('click', function (e) {
                 e.stopPropagation(); e.preventDefault();
+                // 클릭 시점에 charId를 새로 가져옴 (클로저 stale 방지)
                 const currentCharId = getCurrentCharId();
                 if (!currentCharId) { toastr.warning('현재 캐릭터를 찾을 수 없습니다.'); return; }
                 toggleCharPersona(currentCharId, avatarId);
@@ -1447,6 +1257,7 @@ function injectFavoriteStars() {
                        .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
                 refreshCharViewBtn();
             });
+            // 별 버튼 바로 뒤에 삽입, 별이 없으면 같은 위치 fallback
             const $star = $item.find('.qpl-fav-star');
             if ($star.length) $star.after($link);
             else {
@@ -1457,6 +1268,7 @@ function injectFavoriteStars() {
                 else $item.append($link);
             }
         } else {
+            // 이미 버튼이 있으면 현재 캐릭터 기준으로 상태만 갱신
             const fresh = getCurrentCharId();
             const now   = fresh ? isCharPersona(fresh, avatarId) : false;
             $item.find('.qpl-char-link-btn')
@@ -1478,8 +1290,10 @@ function setupPanelObserver() {
     _observer = new MutationObserver(() => {
         if (_observerPaused) return;
         clearTimeout(timer);
+        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
         timer = setTimeout(injectFavoriteStars, 600);
     });
+    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
     _observer.observe(document.body, { childList: true, subtree: true });
 }
 
@@ -1489,6 +1303,7 @@ jQuery(async () => {
         getSettings();
         setupPanelObserver();
 
+        // 캐릭터 전환 시: 연결된 페르소나가 여러 개이고 채팅 고정 없으면 선택 팝업
         eventSource.on(event_types.CHAT_CHANGED, () => {
             updateButtonState();
             setTimeout(injectFavoriteStars, 200);
@@ -1511,7 +1326,7 @@ jQuery(async () => {
             setTimeout(injectFavoriteStars, 800);
         });
         addQuickPersonaButton();
-        setTimeout(injectFavoriteStars, 1200);
+        setTimeout(injectFavoriteStars, 1200); // 초기 주입
         $(document.body).on('click.qpl', e => {
             if (isOpen && !e.target.closest('#qplMenu') && !e.target.closest('#qplBtn')) closeMenu();
         });
