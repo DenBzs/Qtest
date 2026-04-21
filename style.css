@@ -395,8 +395,8 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-detail-inner {
     display: flex;
     flex-direction: column;
-    padding: 16px 10px 12px;
-    gap: 8px;
+    padding: 8px 10px 10px;
+    gap: 6px;
 }
 
 .qpl-detail-empty {
@@ -413,7 +413,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding-top: 6px;
+    padding-top: 2px;
 }
 
 /* 왼쪽 열 - 저장 버튼 */
@@ -474,9 +474,9 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     border-radius: 6px;
     color: inherit;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
-    font-size: 0.82em;
+    width: 26px;
+    height: 26px;
+    font-size: 0.76em;
     line-height: 1;
     opacity: 0.45;
     transition: background 0.12s, opacity 0.12s;
@@ -497,18 +497,19 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     color: var(--qpl-accent, #8868c0);
 }
 
-/* 즐겨찾기 active → 노란색 */
+/* 즐겨찾기 active → 별만 노란색, 배경/테두리 없음 (목록과 동일) */
 .qpl-detail-fav-btn.active {
     color: #e0a800 !important;
-    border-color: rgba(224,168,0,0.3) !important;
-    background: rgba(224,168,0,0.08) !important;
+    border-color: rgba(128,128,128,0.2) !important;
+    background: none !important;
+    opacity: 1 !important;
 }
 
-/* 캐릭터 고정 active → 보라색 */
+/* 캐릭터 고정 active → 고정 보라색 #8868c0, 배경/테두리 없음 (목록과 동일) */
 .qpl-detail-char-btn.active {
-    color: var(--qpl-accent, #8868c0) !important;
-    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent) !important;
-    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent) !important;
+    color: #8868c0 !important;
+    border-color: rgba(128,128,128,0.2) !important;
+    background: none !important;
     opacity: 1 !important;
 }
 
@@ -520,8 +521,8 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     justify-content: center;
     gap: 5px;
     width: auto !important;
-    height: 32px;
-    padding: 0 12px;
+    height: 26px;
+    padding: 0 10px;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
@@ -567,8 +568,8 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 
 .qpl-detail-textarea {
     width: 100%;
-    min-height: 180px;
-    max-height: 280px;
+    min-height: 150px;
+    max-height: 150px;
     font-size: 0.76em;
     line-height: 1.55;
     color: inherit;
@@ -576,10 +577,9 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     border: 1px solid rgba(128,128,128,0.2);
     border-radius: 6px;
     padding: 6px 9px;
-    resize: vertical;
+    resize: none;
     outline: none;
     box-sizing: border-box;
-    transition: border-color 0.12s;
 }
 .qpl-detail-textarea:focus {
     border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
