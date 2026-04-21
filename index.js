@@ -424,8 +424,19 @@ async function openMenu() {
 
         $menu.css({ visibility: '', display: 'none' }).fadeIn(animation_duration);
         requestAnimationFrame(() => applyQplTheme(getQplTheme()));
+
+        // [fix] 키보드 내릴 때 창 이동 방지 — visualViewport 크기 변화 시 Popper 재고정
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', _onViewportResize);
+        }
     } finally {
         _isOpening = false;
+    }
+}
+
+function _onViewportResize() {
+    if (popper) {
+        requestAnimationFrame(() => popper.update());
     }
 }
 
@@ -438,6 +449,11 @@ function closeMenu() {
 
     $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
     if (popper) { popper.destroy(); popper = null; }
+
+    // visualViewport 리스너 정리
+    if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', _onViewportResize);
+    }
 }
 
 // ─── 뷰 전환 헬퍼 ────────────────────────────────────────────────────────────
@@ -504,29 +520,27 @@ function renderDetailView($container, avatarId) {
     $container.html(`
         <div class="qpl-detail-inner" data-avatar="${safeId}">
 
-            <!-- 상단: 프사 + 아이콘 버튼들 한 줄 -->
+            <!-- 상단: [저장] [프사] [⭐👤📍] 가로 배열, 프사 중앙 기준 -->
             <div class="qpl-detail-top">
+                <div class="qpl-detail-left-col">
+                    <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="저장">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>수정 저장</span>
+                    </button>
+                </div>
                 <div class="qpl-detail-avatar-wrap${isActive ? ' qpl-detail-active' : ''}">
                     <img class="qpl-detail-avatar" src="${imgUrl}" alt="${safeName}" />
                 </div>
-                <div class="qpl-detail-top-actions">
-                    <div class="qpl-detail-action-row">
-                        <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                            <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
-                        </button>
-                        <button class="qpl-detail-icon-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
-                            <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
-                        </button>
-                        <button class="qpl-detail-icon-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
-                            <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
-                        </button>
-                    </div>
-                    <div class="qpl-detail-action-row">
-                        <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="저장">
-                            <i class="fa-solid fa-floppy-disk"></i>
-                            <span>수정 저장</span>
-                        </button>
-                    </div>
+                <div class="qpl-detail-right-col">
+                    <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+                        <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
+                    </button>
+                    <button class="qpl-detail-icon-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
+                        <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
+                    </button>
+                    <button class="qpl-detail-icon-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
+                        <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
+                    </button>
                 </div>
             </div>
 
