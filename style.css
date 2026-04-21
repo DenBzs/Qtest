@@ -29,9 +29,6 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 #qplMenu {
     z-index: 30000;
     position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
     background: #f8f5ff;
     border: 1px solid #d8cef0;
     border-radius: 12px;
@@ -387,6 +384,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 
 .qpl-detail {
     overflow-y: auto;
+    min-height: calc(6 * 54px);
     max-height: calc(6 * 54px);
 }
 
@@ -447,8 +445,15 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 .qpl-detail-top-actions {
     flex: 1;
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+}
+
+/* 버튼 한 줄 */
+.qpl-detail-action-row {
+    display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
     gap: 4px;
     align-items: center;
 }
@@ -492,14 +497,14 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     background: rgba(224,168,0,0.08) !important;
 }
 
-/* 💾 저장 버튼 — 같은 행, 우측 */
+/* 💾 저장 버튼 — 두 번째 줄 */
 .qpl-detail-save-btn {
-    margin-left: auto;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 4px 8px;
+    gap: 5px;
+    padding: 4px 10px;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
@@ -508,6 +513,7 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     cursor: pointer;
     opacity: 0.65;
     transition: opacity 0.12s, background 0.15s;
+    white-space: nowrap;
 }
 .qpl-detail-save-btn:hover { opacity: 1; }
 .qpl-detail-save-btn.saved {
@@ -543,8 +549,8 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 
 .qpl-detail-textarea {
     width: 100%;
-    min-height: 100px;
-    max-height: 180px;
+    min-height: 180px;
+    max-height: 280px;
     font-size: 0.76em;
     line-height: 1.55;
     color: inherit;
