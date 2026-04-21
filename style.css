@@ -395,8 +395,8 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-detail-inner {
     display: flex;
     flex-direction: column;
-    padding: 10px 10px 12px;
-    gap: 6px;
+    padding: 16px 10px 12px;
+    gap: 8px;
 }
 
 .qpl-detail-empty {
@@ -406,12 +406,32 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     font-size: 0.82em;
 }
 
-/* ── 상단: 프사 + 아이콘 버튼들 한 줄 ── */
+/* ── 상단: [저장] [프사] [⭐👤📍] 3열 구조 ── */
 
 .qpl-detail-top {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 6px;
+}
+
+/* 왼쪽 열 - 저장 버튼 */
+.qpl-detail-left-col {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* 오른쪽 열 - ⭐👤📍 */
+.qpl-detail-right-col {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 /* 아바타 */
@@ -441,40 +461,27 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 
 body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 
-/* 아이콘 버튼 그룹 (프사 오른쪽) */
-.qpl-detail-top-actions {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-start;
-}
 
-/* 버튼 한 줄 */
-.qpl-detail-action-row {
-    display: flex;
-    flex-direction: row;
-    gap: 4px;
-    align-items: center;
-}
-
-/* 아이콘 전용 버튼 (행 액션 버튼과 동일한 스타일) */
+/* 아이콘 전용 버튼 */
 .qpl-detail-icon-btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     background: none;
     border: 1px solid rgba(128,128,128,0.2);
     border-radius: 6px;
     color: inherit;
     cursor: pointer;
-    padding: 4px 7px;
-    font-size: 0.72em;
+    width: 32px;
+    height: 32px;
+    font-size: 0.82em;
     line-height: 1;
     opacity: 0.45;
     transition: background 0.12s, opacity 0.12s;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 .qpl-detail-icon-btn span { font-size: 0.95em; }
 
@@ -497,6 +504,14 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     background: rgba(224,168,0,0.08) !important;
 }
 
+/* 캐릭터 고정 active → 보라색 */
+.qpl-detail-char-btn.active {
+    color: var(--qpl-accent, #8868c0) !important;
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent) !important;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent) !important;
+    opacity: 1 !important;
+}
+
 /* 💾 저장 버튼 — 두 번째 줄 */
 .qpl-detail-save-btn {
     flex-shrink: 0;
@@ -504,7 +519,9 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 4px 10px;
+    width: auto !important;
+    height: 32px;
+    padding: 0 12px;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
@@ -514,6 +531,7 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     opacity: 0.65;
     transition: opacity 0.12s, background 0.15s;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 .qpl-detail-save-btn:hover { opacity: 1; }
 .qpl-detail-save-btn.saved {
