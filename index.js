@@ -86,6 +86,7 @@ let isOpen = false;
 let _isOpening = false; // openMenu 중복 호출 방지용 [fix-8]
 let currentView = 'all'; // 'all' | 'fav' | 'char'
 let _allAvatars  = [];    // openMenu에서 캐시, 뷰 전환 시 재사용
+let _tapTimer    = null;  // 더블탭 타이머 (모듈 레벨로 closeMenu 시 정리)
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 function getSettings() {
@@ -454,6 +455,8 @@ function closeMenu() {
     if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', _onViewportResize);
     }
+    // 더블탭 타이머 정리
+    if (_tapTimer) { clearTimeout(_tapTimer); _tapTimer = null; }
 }
 
 // ─── 뷰 전환 헬퍼 ────────────────────────────────────────────────────────────
@@ -606,24 +609,39 @@ function renderDetailView($container, avatarId) {
             }
         }
 
-        // ST 네이티브 페르소나 편집 패널 input/textarea에도 즉시 반영
+        // ST 네이티브 페르소나 편집 패널 input/textarea 즉시 반영
         try {
-            // 이름 input — 현재 표시 중인 페르소나의 input만 갱신
-            const $nameInput = $(`#persona_name_input[data-avatar="${CSS.escape(avatarId)}"], #persona_name_input`);
-            const $descInput = $('#persona_description_text, textarea[name="persona_description"]');
+            const $nameInput  = $('#persona_name_input');
+            const $descInput  = $('#persona_description_text, textarea[name="persona_description"]');
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
-            // 이름 input이 현재 이 페르소나를 표시 중일 때만 덮어씀
-            if ($nameInput.length) {
-                $nameInput.val(displayName).trigger('input').trigger('change');
-            }
-            if ($descInput.length) {
-                $descInput.val(newContent).trigger('input').trigger('change');
-            }
-            if ($titleInput.length) {
-                $titleInput.val(newTag).trigger('input').trigger('change');
+            if ($nameInput.length)  $nameInput.val(displayName).trigger('input').trigger('change');
+            if ($descInput.length)  $descInput.val(newContent).trigger('input').trigger('change');
+            if ($titleInput.length) $titleInput.val(newTag).trigger('input').trigger('change');
+        } catch (err) {
+            console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
+        }
+
+        // ST "Current Persona" 표시 영역 즉시 반영
+        // 사진1 빨간 동그라미: #user_avatar_block 내 이름 텍스트, .persona_name_block 등
+        try {
+            // 1) user_avatar_block 내 이름 span 직접 갱신
+            $('#user_avatar_block .avatar_name, #user_avatar_block .ch_name, #user_avatar_block span')
+                .filter(function() {
+                    // 짧은 텍스트 노드만 (버튼 텍스트 오염 방지)
+                    return $(this).children().length === 0 && $(this).text().trim().length > 0;
+                })
+                .first().text(displayName);
+
+            // 2) #persona_name_block, .selected_persona_name, #current_persona_name 등 ST 버전별 셀렉터
+            $('#persona_name_block, .selected_persona_name, #current_persona_name, .persona-name-display')
+                .text(displayName);
+
+            // 3) ST SETTINGS_UPDATED 이벤트 emit → ST가 자체 UI 갱신하도록
+            if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
+                eventSource.emit(event_types.SETTINGS_UPDATED);
             }
         } catch (err) {
-            console.warn('[QPL] ST 패널 동기화 실패:', err);
+            console.warn('[QPL] ST Current Persona 갱신 실패:', err);
         }
 
         updateButtonState();
@@ -1028,7 +1046,6 @@ function createRow(avatarId, editMode = false) {
         });
 
         // 이름/태그 영역 더블클릭/더블탭 → 상세창 열기
-        let _tapTimer = null;
         $row.find('.qpl-info').on('click', () => {
             if (_tapTimer) {
                 // 두 번째 탭 — 상세창 오픈
