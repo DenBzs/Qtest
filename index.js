@@ -594,21 +594,26 @@ function renderDetailView($container, avatarId) {
         }
 
         // ST 페르소나 패널 DOM 동기화 (이름, 태그)
+        // .first() 없이 모든 일치 요소 갱신, 셀렉터 범위 확대
         const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
         if ($panel.length) {
-            $panel.find('.ch_name, .name_text, .persona_name').first().text(displayName);
+            $panel.find('.ch_name, .name_text, .persona_name, span.ch_name').text(displayName);
+            $panel.attr('title', displayName); // 툴팁도 갱신
             if (newTag) {
-                $panel.find('.ch_additional_info, .persona_description').first().text(newTag);
+                $panel.find('.ch_additional_info, .persona_description, .ch_description').text(newTag);
+            } else {
+                $panel.find('.ch_additional_info, .persona_description, .ch_description').text('');
             }
         }
 
         // ST 네이티브 페르소나 편집 패널 input/textarea에도 즉시 반영
-        // (현재 열려있는 페르소나가 동일한 경우)
         try {
-            const $nameInput = $('#persona_name_input, input[name="persona_name"]');
+            // 이름 input — 현재 표시 중인 페르소나의 input만 갱신
+            const $nameInput = $(`#persona_name_input[data-avatar="${CSS.escape(avatarId)}"], #persona_name_input`);
             const $descInput = $('#persona_description_text, textarea[name="persona_description"]');
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
-            if ($nameInput.length && $nameInput.val() !== displayName) {
+            // 이름 input이 현재 이 페르소나를 표시 중일 때만 덮어씀
+            if ($nameInput.length) {
                 $nameInput.val(displayName).trigger('input').trigger('change');
             }
             if ($descInput.length) {
@@ -675,6 +680,11 @@ function renderDetailView($container, avatarId) {
             .attr('title', nowLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
             .find('i').attr('class', `fa-${nowLocked ? 'solid' : 'regular'} fa-thumbtack`);
     });
+
+    // [fix-6] 입력 중 MutationObserver 일시정지 → 버벅임 방지
+    $inner.find('.qpl-detail-name-input, .qpl-detail-tag-input, .qpl-detail-textarea')
+        .on('focus', () => pauseObserver())
+        .on('blur',  () => resumeObserver());
 }
 
 // ─── 순서편집 모드 진입 ────────────────────────────────────────────────────────
@@ -1007,14 +1017,32 @@ function createRow(avatarId, editMode = false) {
     }
 
     if (!editMode) {
-        $row.find('.qpl-avatar-wrap, .qpl-info').on('click', async () => {
+        // 아바타 클릭 → 페르소나 적용만 (단일 클릭)
+        $row.find('.qpl-avatar-wrap').on('click', async () => {
             const accentColor = t.accent;
             $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
             $row.addClass('qpl-active').css('background', accentColor + '18');
             $row[0].style.setProperty('--qpl-active-bar', accentColor);
             await setUserAvatar(avatarId);
             updateButtonState();
-            switchToDetailView(avatarId);
+        });
+
+        // 이름/태그 영역 더블클릭/더블탭 → 상세창 열기
+        let _tapTimer = null;
+        $row.find('.qpl-info').on('click', () => {
+            if (_tapTimer) {
+                // 두 번째 탭 — 상세창 오픈
+                clearTimeout(_tapTimer);
+                _tapTimer = null;
+                const accentColor = t.accent;
+                $('#qplMenu .qpl-row').removeClass('qpl-active').css('background', '');
+                $row.addClass('qpl-active').css('background', accentColor + '18');
+                $row[0].style.setProperty('--qpl-active-bar', accentColor);
+                switchToDetailView(avatarId);
+            } else {
+                // 첫 번째 탭 — 300ms 안에 두 번째 탭 오면 더블탭 처리
+                _tapTimer = setTimeout(() => { _tapTimer = null; }, 300);
+            }
         });
 
         // ⭐ 즐겨찾기 토글
