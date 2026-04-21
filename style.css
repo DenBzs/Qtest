@@ -33,13 +33,13 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     border: 1px solid #d8cef0;
     border-radius: 12px;
     width: min(96vw, 520px);
-    max-height: min(90dvh, 600px); /* dvh: 키보드 포함 뷰포트 넘지 않도록 */
     box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.08);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     color: #2c2448;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
+    max-height: 90dvh;
 }
 
 /* ── 헤더 ── */
@@ -71,7 +71,7 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     flex-shrink: 0;
 }
 
-/* 헤더 버튼 공통 — 24×22px */
+/* 헤더 버튼 공통 — 24×22px으로 축소 */
 .qpl-view-btn,
 .qpl-theme-toggle-btn,
 .qpl-edit-btn {
@@ -98,181 +98,201 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
     opacity: 0.9;
 }
 
-/* 현재 활성 뷰 버튼 */
+/* 현재 활성 뷰 버튼 — color/bg/border는 --qpl-accent CSS 변수로 처리 */
 .qpl-view-btn.active {
     opacity: 1;
-    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 18%, transparent);
-    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 55%, transparent);
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
     color: var(--qpl-accent, #8868c0);
 }
 
-/* ➕ 추가 버튼 — 약간 강조 */
-.qpl-add-btn {
-    opacity: 0.65;
-}
-.qpl-add-btn.active {
-    color: var(--qpl-accent, #8868c0);
-}
-
-/* 캐릭터 탭 — 연결된 페르소나가 있으면 강조 */
+/* 👤 버튼: 연결 없음=투명, 있음=CSS var accent */
+.qpl-char-btn          { background: transparent; }
 .qpl-char-btn.has-data {
     opacity: 1;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 16%, transparent);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 60%, transparent);
     color: var(--qpl-accent, #8868c0);
-    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
 }
 
-/* ── 테마 바 ── */
+/* ── 테마 선택 바 ── */
 
 .qpl-theme-bar {
     display: flex;
-    justify-content: center;
-    gap: 2px;
-    padding: 6px 10px;
+    align-items: center;
+    justify-content: space-around;
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
     flex-shrink: 0;
 }
 
-/* ── 순서편집 완료 버튼 ── */
+/* ── 편집 완료 버튼 ── */
 
 .qpl-done-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
+    gap: 4px;
+    border: 1px solid rgba(128,128,128,0.3);
     border-radius: 6px;
-    border: 1px solid var(--qpl-accent, #8868c0);
-    background: rgba(136,104,192,0.1);
-    color: var(--qpl-accent, #8868c0);
-    font-size: 0.78em;
+    color: inherit;
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 3px 10px;
     cursor: pointer;
-    transition: background 0.12s;
+    white-space: nowrap;
+    transition: opacity 0.15s;
 }
-.qpl-done-btn:hover { background: rgba(136,104,192,0.2); }
+.qpl-done-btn:hover { opacity: 0.8; }
 
-/* ── 목록 ── */
+/* ── 스크롤 목록 ── */
 
 .qpl-list {
     overflow-y: auto;
-    overscroll-behavior: contain;
-    flex: 1;
-    min-height: 0;
+    max-height: calc(6.5 * 60px);
+    padding: 4px 0;
+    position: relative;
 }
 
 .qpl-list::-webkit-scrollbar        { width: 4px; }
 .qpl-list::-webkit-scrollbar-track  { background: transparent; }
 .qpl-list::-webkit-scrollbar-thumb  { background: #c4b8e0; border-radius: 4px; }
 
-/* ── 행 ── */
+/* ── 힌트 ── */
+
+.qpl-hint {
+    padding: 6px 14px 8px;
+    font-size: 0.76em;
+    color: inherit;
+    opacity: 0.55;
+    user-select: none;
+    border-top: 1px solid rgba(128,128,128,0.15);
+    transition: border-color 0.15s;
+}
+
+/* 목록이 비어있을 때 힌트가 첫 요소면 위쪽 구분선 없앰 */
+.qpl-list > .qpl-hint:first-child { border-top: none; }
+
+.qpl-hint i { color: #c0a030; margin-right: 4px; }
+
+/* ── 페르소나 행 ── */
 
 .qpl-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    cursor: pointer;
-    border-bottom: 1px solid rgba(128,128,128,0.07);
-    min-height: 48px;
-    box-sizing: border-box;
+    gap: 9px;
+    padding: 7px 10px;
+    margin: 1px 4px;
+    border-radius: 8px;
+    cursor: default;
+    transition: background 0.12s;
     position: relative;
-    transition: background 0.1s;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
+    box-sizing: border-box;
+    background: transparent;
 }
 
-.qpl-row:last-child { border-bottom: none; }
+.qpl-row:hover      { background: rgba(120,100,180,0.08); }
+.qpl-row.qpl-active { /* background set by JS */ }
 
-/* active 행 — left accent bar */
 .qpl-row.qpl-active::before {
     content: '';
     position: absolute;
-    left: 0; top: 6px; bottom: 6px;
-    width: 3px;
+    left: 0; top: 20%; bottom: 20%;
+    width: 2px;
+    background: var(--qpl-active-bar, rgba(136,104,192,0.6));
+    opacity: 0.6;
     border-radius: 2px;
-    background: var(--qpl-active-bar, var(--qpl-accent, #8868c0));
 }
 
-/* 편집모드 행 */
-.qpl-row.qpl-edit-mode { cursor: default; }
+/* ── 드래그 핸들 ── */
+
+.qpl-row.qpl-edit-mode { touch-action: pan-y; }
 
 .qpl-drag-handle {
     flex-shrink: 0;
-    width: 20px;
+    width: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.3;
+    color: inherit;
+    opacity: 0.4;
     cursor: grab;
-    font-size: 0.85em;
+    font-size: 0.75em;
     touch-action: none;
+    padding: 4px 0;
+    user-select: none;
 }
 .qpl-drag-handle:active { cursor: grabbing; }
 
+/* ── 아바타 ── */
+
 .qpl-avatar-wrap {
     flex-shrink: 0;
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 1.5px solid rgba(128,128,128,0.15);
+    width: 38px; height: 38px;
+    cursor: pointer;
 }
-
-body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
+.qpl-edit-mode .qpl-avatar-wrap { cursor: default; }
 
 .qpl-avatar {
-    width: 100%; height: 100%;
+    width: 38px; height: 38px;
+    border-radius: 50%;
     object-fit: cover;
     object-position: center;
-    display: block;
+    border: 1px solid rgba(128,128,128,0.25);
+    outline: 2px solid transparent;
+    transition: outline-color 0.15s;
 }
 
-/* 기본(default) 페르소나 아바타 — 골든 링 */
-.qpl-avatar.qpl-default {
-    outline: 2px solid var(--golden, #e0a800);
-    outline-offset: 1px;
-}
+.qpl-avatar.qpl-default         { outline-color: #c084b0; }
+body.square-avatars .qpl-avatar { border-radius: 4px; }
+body.big-avatars .qpl-avatar    { width: 46px; height: 46px; }
+body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
+
+/* ── 이름 + 태그 ── */
 
 .qpl-info {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 2px;
+    cursor: pointer;
+    overflow: hidden;
 }
+.qpl-edit-mode .qpl-info { cursor: default; }
 
 .qpl-name {
-    font-size: 0.82em;
+    font-size: 0.88em;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+    color: inherit;
+    width: 100%;
 }
 
 .qpl-tag {
-    display: inline-block;
-    font-size: 0.72em;
-    opacity: 0.6;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 10%, transparent);
+    font-size: 0.75em;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
+    border: none;
     border-radius: 4px;
-    padding: 0 5px;
-    line-height: 1.6;
+    padding: 1px 7px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.55;
+    color: var(--qpl-accent, #8868c0);
+    opacity: 0.8;
+    display: inline-block;
+    max-width: 100%;
 }
 
-.qpl-hint {
-    font-size: 0.82em;
-    opacity: 0.55;
-    border-top: 1px solid rgba(128,128,128,0.1);
-    padding: 10px 14px;
-}
-
-/* ── 행 우측 액션 버튼 그룹 ── */
+/* ── 행 액션 버튼 그룹 (⭐ 👤 📌) ── */
 
 .qpl-row-actions {
     display: flex;
     align-items: center;
-    gap: 0;
+    gap: 1px;
     flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.12s;
@@ -305,9 +325,10 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
 .qpl-row-char-btn:hover,
 .qpl-pin-btn:hover { opacity: 1; background: rgba(120,100,180,0.10); }
 
+/* active 상태 고정색 */
 .qpl-row-fav-btn.active  { opacity: 1 !important; color: #e0a800 !important; }
 .qpl-row-char-btn.active { opacity: 1 !important; color: #8868c0 !important; }
-.qpl-pin-btn.active      { opacity: 1 !important; }
+.qpl-pin-btn.active      { opacity: 1 !important; /* color: JS accent */ }
 
 /* ── 즐겨찾기 별 (페르소나 패널) ── */
 
@@ -362,7 +383,7 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
 .qpl-detail {
     display: flex;
     flex-direction: column;
-    height: calc(6.5 * 48px);
+    max-height: calc(6.5 * 60px);
     overflow: hidden;
 }
 
@@ -388,7 +409,7 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
     font-size: 0.82em;
 }
 
-/* ── [이슈3] 상단: [💾 수정 내용 저장] [프사] [⭐👤📍] ── */
+/* ── 상단: [저장] [프사] [⭐👤📍] 3열 구조 ── */
 
 .qpl-detail-top {
     display: flex;
@@ -398,7 +419,7 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
     padding-top: 2px;
 }
 
-/* 왼쪽 열 — 💾 저장 버튼 */
+/* 왼쪽 열 - 💾 수정 내용 저장 버튼 */
 .qpl-detail-left-col {
     flex: 1;
     display: flex;
@@ -406,12 +427,12 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
     align-items: center;
 }
 
-/* 오른쪽 열 — ⭐👤📍 아이콘 버튼 3개 */
+/* 오른쪽 열 - ⭐👤📍 */
 .qpl-detail-right-col {
     flex: 1;
     display: flex;
     flex-direction: row;
-    gap: 8px; /* 간격 넓힘 */
+    gap: 10px;
     justify-content: flex-start;
     align-items: center;
 }
@@ -459,7 +480,8 @@ body.square-avatars .qpl-avatar-wrap { border-radius: 3px; }
 
 body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 
-/* 아이콘 전용 버튼 (⭐👤📍) */
+
+/* 아이콘 전용 버튼 */
 .qpl-detail-icon-btn {
     flex-shrink: 0;
     display: inline-flex;
@@ -480,6 +502,7 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     white-space: nowrap;
     box-sizing: border-box;
 }
+.qpl-detail-icon-btn span { font-size: 0.95em; }
 
 .qpl-detail-icon-btn:hover {
     opacity: 0.9;
@@ -493,7 +516,7 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     color: var(--qpl-accent, #8868c0);
 }
 
-/* ⭐ active → 노란색, 배경 없음 */
+/* 즐겨찾기 active → 별만 노란색, 배경/테두리 없음 (목록과 동일) */
 .qpl-detail-fav-btn.active {
     color: #e0a800 !important;
     border-color: rgba(128,128,128,0.2) !important;
@@ -501,7 +524,7 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     opacity: 1 !important;
 }
 
-/* 👤 active → 보라색, 배경 없음 */
+/* 캐릭터 고정 active → 고정 보라색 #8868c0, 배경/테두리 없음 (목록과 동일) */
 .qpl-detail-char-btn.active {
     color: #8868c0 !important;
     border-color: rgba(128,128,128,0.2) !important;
@@ -509,29 +532,28 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     opacity: 1 !important;
 }
 
-/* ── [이슈3] 💾 수정 내용 저장 버튼 — 텍스트 포함 넓은 버튼 ── */
+/* 💾 저장 버튼 */
 .qpl-detail-save-btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    width: auto;          /* 텍스트 맞게 자동 */
-    min-width: 26px;
+    width: auto;
     height: 26px;
     padding: 0 10px;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
     color: var(--qpl-accent, #8868c0);
-    font-size: 0.75em;
+    font-size: 0.72em;
+    font-weight: 600;
     cursor: pointer;
     opacity: 0.7;
     transition: opacity 0.12s, background 0.15s;
     box-sizing: border-box;
     white-space: nowrap;
 }
-.qpl-detail-save-btn span { font-size: 1em; }
 .qpl-detail-save-btn:hover { opacity: 1; }
 .qpl-detail-save-btn.saved {
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 28%, transparent);
@@ -548,36 +570,22 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     min-height: 0;
 }
 
-/* ── [이슈2] name·tag input — autofill 툴바 억제 ── */
-.qpl-detail-name-input,
-.qpl-detail-tag-input {
+/* 이름 표시 (읽기 전용) */
+.qpl-detail-name-display {
     width: 100%;
-    font-size: 0.8em;
+    font-size: 0.85em;
+    font-weight: 700;
     color: inherit;
-    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 5%, transparent);
-    border: 1px solid rgba(128,128,128,0.2);
-    border-radius: 6px;
     padding: 5px 9px;
-    outline: none;
     box-sizing: border-box;
-    transition: border-color 0.12s;
-    /* autofill 툴바 억제 */
-    -webkit-user-select: text;
-    user-select: text;
-    /* 자동완성 강제 비활성 */
-    -webkit-text-fill-color: inherit;
+    opacity: 0.75;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-.qpl-detail-name-input:focus,
-.qpl-detail-tag-input:focus {
-    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
-}
-/* autofill 배경 오버라이드 — 브라우저 자동완성 노란 배경 제거 */
-.qpl-detail-name-input:-webkit-autofill,
-.qpl-detail-tag-input:-webkit-autofill {
-    -webkit-box-shadow: 0 0 0 100px transparent inset !important;
-    box-shadow: 0 0 0 100px transparent inset !important;
-    -webkit-text-fill-color: inherit !important;
-}
+
+.qpl-detail-tag-input {
 
 .qpl-detail-textarea {
     width: 100%;
@@ -593,11 +601,18 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     resize: none;
     outline: none;
     box-sizing: border-box;
-    -webkit-user-select: text;
-    user-select: text;
 }
 .qpl-detail-textarea:focus {
     border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
+}
+
+/* ── 이슈2: 이름·태그 input 포커스 시 키보드 흰 여백 억제 ── */
+.qpl-detail-tag-input,
+.qpl-detail-textarea {
+    -webkit-user-select: text;
+    user-select: text;
+    /* 키보드 올라올 때 페이지 스크롤 방지 */
+    touch-action: manipulation;
 }
 
 /* ── 이슈6: 길게 누르기 컨텍스트 메뉴 방지 ── */
