@@ -147,8 +147,8 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 
 .qpl-list {
     overflow-y: auto;
-    height: calc(6 * 48px);
-    max-height: calc(6 * 48px);
+    height: calc(6.5 * 48px);
+    max-height: calc(6.5 * 48px);
     padding: 4px 0;
     position: relative;
 }
@@ -384,8 +384,10 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 /* ── 상세 패널 ── */
 
 .qpl-detail {
-    overflow-y: auto;
-    max-height: calc(6 * 48px);
+    display: flex;
+    flex-direction: column;
+    height: calc(6.5 * 48px);
+    overflow: hidden;
 }
 
 .qpl-detail::-webkit-scrollbar        { width: 4px; }
@@ -393,12 +395,14 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-detail::-webkit-scrollbar-thumb  { background: #c4b8e0; border-radius: 4px; }
 
 .qpl-detail-inner {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     padding: 8px 10px 10px;
     gap: 6px;
-    min-height: calc(6 * 48px);
     box-sizing: border-box;
+    overflow-y: auto;
 }
 
 .qpl-detail-empty {
@@ -453,6 +457,22 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     border-color: var(--qpl-accent, #8868c0);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--qpl-accent, #8868c0) 30%, transparent);
 }
+
+/* 카메라 오버레이 */
+.qpl-detail-avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    color: #fff;
+    font-size: 1em;
+    pointer-events: none;
+}
+.qpl-detail-avatar-wrap:hover .qpl-detail-avatar-overlay { opacity: 1; }
 
 .qpl-detail-avatar {
     width: 100%; height: 100%;
@@ -515,16 +535,16 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     opacity: 1 !important;
 }
 
-/* 💾 저장 버튼 — 두 번째 줄 */
+/* 💾 저장 버튼 */
 .qpl-detail-save-btn {
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    width: auto !important;
+    width: 26px;
     height: 26px;
-    padding: 0 10px;
+    padding: 0;
     border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
@@ -533,7 +553,6 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     cursor: pointer;
     opacity: 0.65;
     transition: opacity 0.12s, background 0.15s;
-    white-space: nowrap;
     box-sizing: border-box;
 }
 .qpl-detail-save-btn:hover { opacity: 1; }
@@ -542,12 +561,44 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
     opacity: 1;
 }
 
+/* ✔ 적용 버튼 */
+.qpl-detail-apply-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid rgba(128,128,128,0.2);
+    background: none;
+    color: inherit;
+    font-size: 0.8em;
+    cursor: pointer;
+    opacity: 0.45;
+    transition: opacity 0.12s, background 0.12s;
+    box-sizing: border-box;
+}
+.qpl-detail-apply-btn:hover {
+    opacity: 0.9;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 8%, transparent);
+}
+.qpl-detail-apply-btn.active {
+    opacity: 1;
+    color: var(--qpl-accent, #8868c0);
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 40%, transparent);
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
+}
+
 /* ── 편집 필드 ── */
 
 .qpl-detail-fields {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex: 1;
+    min-height: 0;
 }
 
 .qpl-detail-name-input,
@@ -585,4 +636,18 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 }
 .qpl-detail-textarea:focus {
     border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
+}
+
+/* ── 이슈4: 이름·태그 input 위 키보드 툴바(열쇠/카드 바) 억제 ── */
+.qpl-detail-name-input,
+.qpl-detail-tag-input {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ── 이슈6: 길게 누르기 컨텍스트 메뉴 방지 ── */
+.qpl-row {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
