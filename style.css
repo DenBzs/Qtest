@@ -147,7 +147,8 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 
 .qpl-list {
     overflow-y: auto;
-    max-height: calc(6 * 54px);
+    height: calc(6 * 48px);
+    max-height: calc(6 * 48px);
     padding: 4px 0;
     position: relative;
 }
@@ -384,8 +385,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 
 .qpl-detail {
     overflow-y: auto;
-    min-height: calc(6 * 54px);
-    max-height: calc(6 * 54px);
+    max-height: calc(6 * 48px);
 }
 
 .qpl-detail::-webkit-scrollbar        { width: 4px; }
@@ -397,6 +397,8 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     flex-direction: column;
     padding: 8px 10px 10px;
     gap: 6px;
+    min-height: calc(6 * 48px);
+    box-sizing: border-box;
 }
 
 .qpl-detail-empty {
@@ -412,7 +414,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 16px;
     padding-top: 2px;
 }
 
@@ -568,8 +570,8 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 
 .qpl-detail-textarea {
     width: 100%;
-    min-height: 150px;
-    max-height: 150px;
+    flex: 1;
+    min-height: 80px;
     font-size: 0.76em;
     line-height: 1.55;
     color: inherit;
