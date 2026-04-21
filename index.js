@@ -510,21 +510,23 @@ function renderDetailView($container, avatarId) {
                     <img class="qpl-detail-avatar" src="${imgUrl}" alt="${safeName}" />
                 </div>
                 <div class="qpl-detail-top-actions">
-                    <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
-                        <i class="fa-${fav ? 'solid' : 'regular'} fa-square-check"></i>
-                        <span>즐겨찾기</span>
-                    </button>
-                    <button class="qpl-detail-icon-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
-                        <i class="fa-${linked ? 'solid' : 'regular'} fa-square-check"></i>
-                        <span>캐릭터 고정</span>
-                    </button>
-                    <button class="qpl-detail-icon-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
-                        <i class="fa-${locked ? 'solid' : 'regular'} fa-square-check"></i>
-                        <span>채팅방 고정</span>
-                    </button>
-                    <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="저장">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                    </button>
+                    <div class="qpl-detail-action-row">
+                        <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+                            <i class="fa-${fav ? 'solid' : 'regular'} fa-star"></i>
+                        </button>
+                        <button class="qpl-detail-icon-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
+                            <i class="fa-${linked ? 'solid' : 'regular'} fa-user"></i>
+                        </button>
+                        <button class="qpl-detail-icon-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
+                            <i class="fa-${locked ? 'solid' : 'regular'} fa-thumbtack"></i>
+                        </button>
+                    </div>
+                    <div class="qpl-detail-action-row">
+                        <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="저장">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>수정 저장</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -586,13 +588,37 @@ function renderDetailView($container, avatarId) {
             }
         }
 
+        // ST 네이티브 페르소나 편집 패널 input/textarea에도 즉시 반영
+        // (현재 열려있는 페르소나가 동일한 경우)
+        try {
+            const $nameInput = $('#persona_name_input, input[name="persona_name"]');
+            const $descInput = $('#persona_description_text, textarea[name="persona_description"]');
+            const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
+            if ($nameInput.length && $nameInput.val() !== displayName) {
+                $nameInput.val(displayName).trigger('input').trigger('change');
+            }
+            if ($descInput.length) {
+                $descInput.val(newContent).trigger('input').trigger('change');
+            }
+            if ($titleInput.length) {
+                $titleInput.val(newTag).trigger('input').trigger('change');
+            }
+        } catch (err) {
+            console.warn('[QPL] ST 패널 동기화 실패:', err);
+        }
+
         updateButtonState();
 
-        // 저장 버튼 시각 피드백 — 레이아웃 변경 없이
+        // 저장 버튼 시각 피드백
         const $btn = $inner.find('.qpl-detail-save-btn');
         $btn.addClass('saved');
-        setTimeout(() => $btn.removeClass('saved'), 1200);
-        // 메뉴 위치 고정 (레이아웃 변화 없으므로 update 불필요)
+        setTimeout(() => {
+            $btn.removeClass('saved');
+            // saved 클래스 제거 후 Popper 위치 재고정 (레이아웃 변화 방지)
+            if (popper) popper.update();
+        }, 1200);
+        // 저장 직후 위치 즉시 고정
+        if (popper) popper.update();
     });
 
     // ✔ 즐겨찾기
@@ -602,7 +628,7 @@ function renderDetailView($container, avatarId) {
         const now = isFavorite(avatarId);
         $(e.currentTarget).toggleClass('active', now)
             .attr('title', now ? '즐겨찾기 해제' : '즐겨찾기 추가')
-            .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-square-check`);
+            .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
         $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] .qpl-fav-star`)
             .toggleClass('active', now).find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-star`);
         $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"] .qpl-row-fav-btn`)
@@ -618,7 +644,7 @@ function renderDetailView($container, avatarId) {
         const now = isCharPersona(cid, avatarId);
         $(e.currentTarget).toggleClass('active', now)
             .attr('title', now ? '캐릭터 고정 해제' : '현재 캐릭터에 고정')
-            .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-square-check`);
+            .find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
         refreshCharViewBtn();
         $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"] .qpl-row-char-btn`)
             .toggleClass('active', now).find('i').attr('class', `fa-${now ? 'solid' : 'regular'} fa-user`);
@@ -633,7 +659,7 @@ function renderDetailView($container, avatarId) {
         const nowLocked = getLockedPersona() === avatarId;
         $(e.currentTarget).toggleClass('active', nowLocked)
             .attr('title', nowLocked ? '채팅방 고정 해제' : '현재 채팅방에 고정')
-            .find('i').attr('class', `fa-${nowLocked ? 'solid' : 'regular'} fa-square-check`);
+            .find('i').attr('class', `fa-${nowLocked ? 'solid' : 'regular'} fa-thumbtack`);
     });
 }
 
