@@ -316,10 +316,8 @@ async function openMenu() {
                     </div>
                 </div>
                 <div class="qpl-theme-bar" style="display:none;"></div>
-                <div class="qpl-panels detail-only">
-                    <div class="qpl-list"></div>
-                    <div class="qpl-detail"></div>
-                </div>
+                <div class="qpl-list" style="display:none;"></div>
+                <div class="qpl-detail"></div>
             </div>
         `);
 
@@ -345,13 +343,7 @@ async function openMenu() {
         $menu.find('.qpl-detail-btn').on('click', e => {
             e.stopPropagation();
             if (currentView === 'detail') return;
-            currentView = 'detail';
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find('.qpl-detail-btn').addClass('active');
-            $menu.find('.qpl-panels').addClass('detail-only');
-            $menu.find('.qpl-edit-btn').hide();
-            renderDetailView($menu.find('.qpl-detail'), user_avatar);
-            requestAnimationFrame(() => { if (popper) popper.update(); });
+            switchToDetailView(user_avatar);
         });
 
         // 🎭 전체 목록 버튼
@@ -361,10 +353,9 @@ async function openMenu() {
             currentView = 'all';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-all-btn').addClass('active');
-            $menu.find('.qpl-hint').hide();
-            $menu.find('.qpl-panels').removeClass('detail-only');
+            $menu.find('.qpl-edit-btn').hide();
+            switchToListView($menu);
             renderList($menu.find('.qpl-list'), _allAvatars, false);
-            renderDetailView($menu.find('.qpl-detail'), user_avatar);
             requestAnimationFrame(() => { if (popper) popper.update(); });
         });
 
@@ -375,12 +366,10 @@ async function openMenu() {
             currentView = 'fav';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-fav-btn').addClass('active');
-            $menu.find('.qpl-panels').removeClass('detail-only');
+            switchToListView($menu);
             applyQplTheme(getQplTheme());
-            // 클릭 시점에 즐겨찾기 상태 재확인
             const curFavs = getSettings().favorites.length > 0;
             $menu.find('.qpl-edit-btn').toggle(curFavs);
-            renderDetailView($menu.find('.qpl-detail'), user_avatar);
             if (curFavs) {
                 renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
             } else {
@@ -401,19 +390,11 @@ async function openMenu() {
             currentView = 'char';
             $menu.find('.qpl-view-btn').removeClass('active');
             $menu.find('.qpl-char-btn').addClass('active');
-            $menu.find('.qpl-panels').removeClass('detail-only');
-            // 편집 버튼: 캐릭터 페르소나 있을 때만
+            switchToListView($menu);
             const cid = getCurrentCharId();
             $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
             renderCharView($menu.find('.qpl-list'), cid);
-            renderDetailView($menu.find('.qpl-detail'), user_avatar);
             requestAnimationFrame(() => { if (popper) popper.update(); });
-        });
-
-        // 🎭 전체 뷰로 돌아올 때 편집 버튼 숨김
-        $menu.find('.qpl-all-btn').on('click', e => {
-            // 이미 핸들러 있지만 edit-btn 토글 추가
-            $menu.find('.qpl-edit-btn').hide();
         });
 
         // 순서 편집
@@ -457,6 +438,24 @@ function closeMenu() {
 
     $('#qplMenu').stop(true).fadeOut(animation_duration, () => $('#qplMenu').remove());
     if (popper) { popper.destroy(); popper = null; }
+}
+
+// ─── 뷰 전환 헬퍼 ────────────────────────────────────────────────────────────
+function switchToDetailView(avatarId) {
+    currentView = 'detail';
+    const $menu = $('#qplMenu');
+    $menu.find('.qpl-view-btn').removeClass('active');
+    $menu.find('.qpl-detail-btn').addClass('active');
+    $menu.find('.qpl-edit-btn').hide();
+    $menu.find('.qpl-list').hide();
+    $menu.find('.qpl-detail').show();
+    renderDetailView($menu.find('.qpl-detail'), avatarId);
+    requestAnimationFrame(() => { if (popper) popper.update(); });
+}
+
+function switchToListView($menu) {
+    $menu.find('.qpl-detail').hide();
+    $menu.find('.qpl-list').show();
 }
 
 // ─── 일반 목록 렌더 ────────────────────────────────────────────────────────────
@@ -505,42 +504,35 @@ function renderDetailView($container, avatarId) {
     $container.html(`
         <div class="qpl-detail-inner" data-avatar="${safeId}">
 
-            <!-- 상단: 프사 + 액션 버튼 3개 한 줄 -->
+            <!-- 상단: 프사 + 아이콘 버튼들 한 줄 -->
             <div class="qpl-detail-top">
                 <div class="qpl-detail-avatar-wrap${isActive ? ' qpl-detail-active' : ''}">
                     <img class="qpl-detail-avatar" src="${imgUrl}" alt="${safeName}" />
                 </div>
                 <div class="qpl-detail-top-actions">
-                    <button class="qpl-detail-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
+                    <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
                         <i class="fa-${fav ? 'solid' : 'regular'} fa-square-check"></i>
                         <span>즐겨찾기</span>
                     </button>
-                    <button class="qpl-detail-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
+                    <button class="qpl-detail-icon-btn qpl-detail-char-btn${linked ? ' active' : ''}" title="${linked ? '캐릭터 고정 해제' : '현재 캐릭터에 고정'}">
                         <i class="fa-${linked ? 'solid' : 'regular'} fa-square-check"></i>
                         <span>캐릭터 고정</span>
                     </button>
-                    <button class="qpl-detail-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
+                    <button class="qpl-detail-icon-btn qpl-detail-pin-btn${locked ? ' active' : ''}" title="${locked ? '채팅방 고정 해제' : '현재 채팅방에 고정'}">
                         <i class="fa-${locked ? 'solid' : 'regular'} fa-square-check"></i>
                         <span>채팅방 고정</span>
+                    </button>
+                    <button class="qpl-detail-icon-btn qpl-detail-save-btn" title="저장">
+                        <i class="fa-solid fa-floppy-disk"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- 하단: 편집 필드들 -->
+            <!-- 편집 필드 (라벨 없음, placeholder로 구분) -->
             <div class="qpl-detail-fields">
-                <label class="qpl-detail-field-label">이름</label>
                 <input class="qpl-detail-name-input" type="text" value="${DOMPurify.sanitize(name)}" placeholder="이름" />
-
-                <label class="qpl-detail-field-label">태그</label>
                 <input class="qpl-detail-tag-input" type="text" value="${DOMPurify.sanitize(tagText)}" placeholder="태그 (선택)" />
-
-                <label class="qpl-detail-field-label">내용</label>
-                <div class="qpl-detail-desc-wrap">
-                    <textarea class="qpl-detail-textarea" placeholder="페르소나 내용">${DOMPurify.sanitize(content)}</textarea>
-                    <button class="qpl-detail-save-btn" title="저장">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                    </button>
-                </div>
+                <textarea class="qpl-detail-textarea" placeholder="페르소나 내용">${DOMPurify.sanitize(content)}</textarea>
             </div>
         </div>
     `);
@@ -571,11 +563,13 @@ function renderDetailView($container, avatarId) {
         if (!power_user.persona_descriptions[avatarId]) power_user.persona_descriptions[avatarId] = {};
         power_user.persona_descriptions[avatarId].title       = newTag;
         power_user.persona_descriptions[avatarId].description = newContent;
-        saveSettings();
+        // ST 전체 설정 저장 (power_user 포함)
+        try { SillyTavern.getContext().saveSettingsDebounced(); } catch {}
 
         // QPL 목록 행 동기화
+        const displayName = newName || name;
         const $row = $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"]`);
-        $row.find('.qpl-name').text(newName || name);
+        $row.find('.qpl-name').text(displayName);
         if (newTag) {
             if ($row.find('.qpl-tag').length) $row.find('.qpl-tag').text(newTag).show();
             else $row.find('.qpl-info').append(`<span class="qpl-tag">${newTag}</span>`);
@@ -583,22 +577,22 @@ function renderDetailView($container, avatarId) {
             $row.find('.qpl-tag').hide();
         }
 
-        // ST 페르소나 패널 DOM 동기화
+        // ST 페르소나 패널 DOM 동기화 (이름, 태그)
         const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
         if ($panel.length) {
-            // 이름 요소 업데이트 (ST는 .ch_name 또는 .name_text 사용)
-            const $nameEl = $panel.find('.ch_name, .name_text, .persona_name').first();
-            if ($nameEl.length) $nameEl.text(newName || name);
-            // title 요소 업데이트
-            const $titleEl = $panel.find('.ch_additional_info, .persona_description').first();
-            if ($titleEl.length) $titleEl.text(newTag);
+            $panel.find('.ch_name, .name_text, .persona_name').first().text(displayName);
+            if (newTag) {
+                $panel.find('.ch_additional_info, .persona_description').first().text(newTag);
+            }
         }
 
         updateButtonState();
-        // 저장 버튼 시각 피드백
+
+        // 저장 버튼 시각 피드백 — 레이아웃 변경 없이
         const $btn = $inner.find('.qpl-detail-save-btn');
         $btn.addClass('saved');
         setTimeout(() => $btn.removeClass('saved'), 1200);
+        // 메뉴 위치 고정 (레이아웃 변화 없으므로 update 불필요)
     });
 
     // ✔ 즐겨찾기
@@ -724,13 +718,7 @@ function exitEditMode(allAvatars) {
     $header.find('.qpl-detail-btn').on('click', e => {
         e.stopPropagation();
         if (currentView === 'detail') return;
-        currentView = 'detail';
-        $menu.find('.qpl-view-btn').removeClass('active');
-        $header.find('.qpl-detail-btn').addClass('active');
-        $menu.find('.qpl-panels').addClass('detail-only');
-        $menu.find('.qpl-edit-btn').hide();
-        renderDetailView($menu.find('.qpl-detail'), user_avatar);
-        requestAnimationFrame(() => { if (popper) popper.update(); });
+        switchToDetailView(user_avatar);
     });
     $header.find('.qpl-all-btn').on('click', e => {
         e.stopPropagation();
@@ -739,9 +727,8 @@ function exitEditMode(allAvatars) {
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-all-btn').addClass('active');
         $menu.find('.qpl-edit-btn').hide();
-        $menu.find('.qpl-panels').removeClass('detail-only');
+        switchToListView($menu);
         renderList($menu.find('.qpl-list'), _allAvatars, false);
-        renderDetailView($menu.find('.qpl-detail'), user_avatar);
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-fav-btn').on('click', e => {
@@ -750,11 +737,10 @@ function exitEditMode(allAvatars) {
         currentView = 'fav';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-fav-btn').addClass('active');
-        $menu.find('.qpl-panels').removeClass('detail-only');
+        switchToListView($menu);
         applyQplTheme(getQplTheme());
         const curFavs = getSettings().favorites.length > 0;
         $menu.find('.qpl-edit-btn').toggle(curFavs);
-        renderDetailView($menu.find('.qpl-detail'), user_avatar);
         if (curFavs) {
             renderList($menu.find('.qpl-list'), getSortedFavorites(_allAvatars), false);
         } else {
@@ -773,11 +759,10 @@ function exitEditMode(allAvatars) {
         currentView = 'char';
         $menu.find('.qpl-view-btn').removeClass('active');
         $header.find('.qpl-char-btn').addClass('active');
-        $menu.find('.qpl-panels').removeClass('detail-only');
+        switchToListView($menu);
         const cid = getCurrentCharId();
         $menu.find('.qpl-edit-btn').toggle(getCharPersonas(cid).length > 0);
         renderCharView($menu.find('.qpl-list'), cid);
-        renderDetailView($menu.find('.qpl-detail'), user_avatar);
         requestAnimationFrame(() => { if (popper) popper.update(); });
     });
     $header.find('.qpl-edit-btn').on('click', e => {
@@ -789,18 +774,20 @@ function exitEditMode(allAvatars) {
 
     const $list = $menu.find('.qpl-list');
     const $editBtn = $menu.find('.qpl-edit-btn');
-    // 편집 후 복귀 시 항상 분할 뷰 (list + detail)
-    $menu.find('.qpl-panels').removeClass('detail-only');
-    renderDetailView($menu.find('.qpl-detail'), user_avatar);
-    if (currentView === 'all') {
+    if (currentView === 'detail') {
+        switchToDetailView(user_avatar);
+    } else if (currentView === 'all') {
         $editBtn.hide();
+        switchToListView($menu);
         renderList($list, _allAvatars, false);
     } else if (currentView === 'char') {
         $editBtn.toggle(charPs.length > 0);
+        switchToListView($menu);
         renderCharView($list, charId);
     } else {
         // fav
         $editBtn.toggle(hasFavs);
+        switchToListView($menu);
         if (hasFavs) {
             renderList($list, listIds, false);
         } else {
@@ -987,15 +974,7 @@ function createRow(avatarId, editMode = false) {
             $row[0].style.setProperty('--qpl-active-bar', accentColor);
             await setUserAvatar(avatarId);
             updateButtonState();
-            // 상세 뷰로 전환
-            currentView = 'detail';
-            const $menu = $('#qplMenu');
-            $menu.find('.qpl-view-btn').removeClass('active');
-            $menu.find('.qpl-detail-btn').addClass('active');
-            $menu.find('.qpl-panels').addClass('detail-only');
-            $menu.find('.qpl-edit-btn').hide();
-            renderDetailView($menu.find('.qpl-detail'), avatarId);
-            requestAnimationFrame(() => { if (popper) popper.update(); });
+            switchToDetailView(avatarId);
         });
 
         // ⭐ 즐겨찾기 토글
