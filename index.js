@@ -3,7 +3,7 @@
  * ⚠️ Extension-QuickPersona와 동시 사용 불가
  */
 
-import { animation_duration, eventSource, event_types, getThumbnailUrl } from '../../../../script.js';
+import { animation_duration, eventSource, event_types, getThumbnailUrl, getRequestHeaders } from '../../../../script.js';
 import { power_user } from '../../../power-user.js';
 import { getUserAvatar, getUserAvatars, setUserAvatar, user_avatar } from '../../../personas.js';
 import { Popper } from '../../../../lib.js';
@@ -535,10 +535,19 @@ async function changePersonaAvatar(avatarId, $inner) {
 
             try {
                 const formData = new FormData();
-                formData.append('avatar', file);
-                formData.append('overwrite_avatar', avatarId);
+                formData.append('avatar', file, avatarId);
+                formData.append('overwrite', 'true');
 
-                const resp = await fetch('/uploaduseravatar', { method: 'POST', body: formData });
+                // getRequestHeaders()로 ST 인증 헤더(CSRF 등) 포함
+                const baseHeaders = getRequestHeaders();
+                // FormData는 Content-Type 자동 설정되므로 제거
+                delete baseHeaders['Content-Type'];
+
+                const resp = await fetch('/api/avatars/upload', {
+                    method: 'POST',
+                    headers: baseHeaders,
+                    body: formData,
+                });
                 if (resp.ok) {
                     // 캐시 무효화 파라미터로 이미지 즉시 갱신
                     const base = getImageUrl(avatarId);
