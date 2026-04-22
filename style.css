@@ -314,14 +314,14 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     border: none;
     color: inherit;
     cursor: pointer;
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 5px;
-    font-size: 0.8em;
+    font-size: 0.75em;
     line-height: 1;
     opacity: 0.3;
     transition: background 0.12s, opacity 0.12s;
@@ -579,12 +579,12 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 /* 이름 표시 (읽기 전용) */
 .qpl-detail-name-display {
     width: 100%;
-    font-size: 1em;
+    font-size: 1.1em;
     font-weight: 700;
     color: inherit;
     padding: 5px 9px;
     box-sizing: border-box;
-    opacity: 0.8;
+    opacity: 0.85;
     user-select: none;
     white-space: nowrap;
     overflow: hidden;
