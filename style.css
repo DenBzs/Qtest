@@ -148,7 +148,8 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 
 .qpl-list {
     overflow-y: auto;
-    max-height: calc(6.5 * 60px);
+    height: calc(6.5 * 48px);
+    max-height: calc(6.5 * 48px);
     padding: 4px 0;
     position: relative;
 }
@@ -313,7 +314,12 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     border: none;
     color: inherit;
     cursor: pointer;
-    padding: 4px 5px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 5px;
     font-size: 0.8em;
     line-height: 1;
@@ -383,7 +389,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-detail {
     display: flex;
     flex-direction: column;
-    max-height: calc(6.5 * 60px);
+    height: calc(6.5 * 48px);
     overflow: hidden;
 }
 
@@ -432,7 +438,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     flex: 1;
     display: flex;
     flex-direction: row;
-    gap: 10px;
+    gap: 6px;
     justify-content: flex-start;
     align-items: center;
 }
@@ -573,19 +579,34 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 /* 이름 표시 (읽기 전용) */
 .qpl-detail-name-display {
     width: 100%;
-    font-size: 0.85em;
+    font-size: 1em;
     font-weight: 700;
     color: inherit;
     padding: 5px 9px;
     box-sizing: border-box;
-    opacity: 0.75;
+    opacity: 0.8;
     user-select: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: center;
 }
 
 .qpl-detail-tag-input {
+    width: 100%;
+    font-size: 0.8em;
+    color: inherit;
+    background: color-mix(in srgb, var(--qpl-accent, #8868c0) 5%, transparent);
+    border: 1px solid rgba(128,128,128,0.2);
+    border-radius: 6px;
+    padding: 5px 9px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.12s;
+}
+.qpl-detail-tag-input:focus {
+    border-color: color-mix(in srgb, var(--qpl-accent, #8868c0) 50%, transparent);
+}
 
 .qpl-detail-textarea {
     width: 100%;
