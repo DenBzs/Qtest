@@ -727,6 +727,12 @@ function renderDetailView($container, avatarId) {
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
             if ($descInput.length)  { $descInput.val(newContent); $descInput.trigger('input').trigger('change'); }
             if ($titleInput.length) { $titleInput.val(newTag);    $titleInput.trigger('input').trigger('change'); }
+
+            // 페르소나 패널 간략보기: 태그 텍스트만 업데이트
+            const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
+            if ($panel.length) {
+                $panel.find('.ch_additional_info').text(newTag);
+            }
         } catch (err) {
             console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
         }
@@ -1298,13 +1304,18 @@ function resumeObserver() { _observerPaused = false; }
 
 function setupPanelObserver() {
     let timer = null;
-    _observer = new MutationObserver(() => {
+    _observer = new MutationObserver((mutations) => {
         if (_observerPaused) return;
+        // QPL 메뉴 자신의 변화는 무시 (자기 렌더링이 injectFavoriteStars를 재호출하는 루프 방지)
+        const qplMenu = document.getElementById('qplMenu');
+        const qplBtn  = document.getElementById('qplBtn');
+        if (mutations.every(m =>
+            (qplMenu && qplMenu.contains(m.target)) ||
+            (qplBtn  && qplBtn.contains(m.target))
+        )) return;
         clearTimeout(timer);
-        // [fix-2] debounce 200→600ms, 감시 범위는 observe() 쪽에서 좁힘
-        timer = setTimeout(injectFavoriteStars, 600);
+        timer = setTimeout(injectFavoriteStars, 300);
     });
-    // 페르소나 패널 + body 양쪽 감시 — 패널이 동적으로 생성되는 경우 대비
     _observer.observe(document.body, { childList: true, subtree: true });
 }
 
