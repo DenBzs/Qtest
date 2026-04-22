@@ -451,31 +451,13 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     border-radius: 50%;
     overflow: hidden;
     border: 2px solid rgba(128,128,128,0.2);
-    cursor: pointer;
     transition: border-color 0.15s;
     box-sizing: border-box;
 }
-.qpl-detail-avatar-wrap:hover { border-color: var(--qpl-accent, #8868c0); }
 .qpl-detail-avatar-wrap.qpl-detail-active {
     border-color: var(--qpl-accent, #8868c0);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--qpl-accent, #8868c0) 30%, transparent);
 }
-
-/* 카메라 오버레이 */
-.qpl-detail-avatar-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.15s;
-    color: #fff;
-    font-size: 1em;
-    pointer-events: none;
-}
-.qpl-detail-avatar-wrap:hover .qpl-detail-avatar-overlay { opacity: 1; }
 
 .qpl-detail-avatar {
     width: 100%; height: 100%;
