@@ -535,8 +535,8 @@ async function changePersonaAvatar(avatarId, $inner) {
 
             try {
                 const formData = new FormData();
-                formData.append('avatar', file, avatarId);
-                formData.append('overwrite', 'true');
+                formData.append('avatar', file, file.name);
+                formData.append('overwrite_name', avatarId);
 
                 // getRequestHeaders()로 ST 인증 헤더(CSRF 등) 포함
                 const baseHeaders = getRequestHeaders();
