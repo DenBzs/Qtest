@@ -549,13 +549,22 @@ async function changePersonaAvatar(avatarId, $inner) {
                     body: formData,
                 });
                 if (resp.ok) {
-                    // 캐시 무효화 파라미터로 이미지 즉시 갱신
-                    const base = getImageUrl(avatarId);
+                    // 서버가 반환한 실제 저장 파일명으로 캐시버스팅
+                    let finalId = avatarId;
+                    try {
+                        const json = await resp.json();
+                        if (json?.path) finalId = json.path;
+                        else if (json?.avatar) finalId = json.avatar;
+                    } catch {}
+
+                    const base = getImageUrl(finalId);
                     const bust = base + (base.includes('?') ? '&' : '?') + '_t=' + Date.now();
                     $inner.find('.qpl-detail-avatar').attr('src', bust);
                     $('#qplBtnImg').attr('src', bust);
                     $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"] .qpl-avatar`).attr('src', bust);
                     $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"] img`).attr('src', bust);
+                    // ST 썸네일 캐시도 강제 갱신
+                    try { eventSource.emit(event_types.SETTINGS_UPDATED); } catch {}
                     toastr.success('프로필 이미지가 변경되었습니다.');
                     resolve(true);
                 } else {
@@ -703,35 +712,40 @@ function renderDetailView($container, avatarId) {
         if (!power_user.persona_descriptions[avatarId]) power_user.persona_descriptions[avatarId] = {};
         power_user.persona_descriptions[avatarId].title       = newTag;
         power_user.persona_descriptions[avatarId].description = newContent;
-        // ST 전체 설정 저장 (power_user 포함)
+
+        // ST 설정 저장
         try { SillyTavern.getContext().saveSettingsDebounced(); } catch {}
 
         // QPL 목록 행 동기화
-        const displayName = newName || name;
         const $row = $(`#qplMenu .qpl-row[data-avatar="${CSS.escape(avatarId)}"]`);
         $row.find('.qpl-name').text(name);
         if (newTag) {
             if ($row.find('.qpl-tag').length) $row.find('.qpl-tag').text(newTag).show();
-            else $row.find('.qpl-info').append(`<span class="qpl-tag">${newTag}</span>`);
+            else $row.find('.qpl-info').append(`<span class="qpl-tag">${DOMPurify.sanitize(newTag)}</span>`);
         } else {
             $row.find('.qpl-tag').hide();
         }
 
-        // ST 네이티브 페르소나 편집 패널 input/textarea 즉시 반영
+        // ST 네이티브 페르소나 패널 즉시 반영
         try {
+            // 현재 선택된 페르소나 패널의 입력창 직접 갱신
             const $descInput  = $('#persona_description_text, textarea[name="persona_description"]');
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
-            if ($descInput.length)  $descInput.val(newContent).trigger('input').trigger('change');
-            if ($titleInput.length) $titleInput.val(newTag).trigger('input').trigger('change');
+            if ($descInput.length)  { $descInput.val(newContent); $descInput.trigger('input').trigger('change'); }
+            if ($titleInput.length) { $titleInput.val(newTag);    $titleInput.trigger('input').trigger('change'); }
+
+            // ST avatar-container 내 태그 텍스트 동기화
+            const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
+            if ($panel.length) {
+                $panel.find('.ch_additional_info, .persona_description, .ch_description').text(newTag);
+            }
         } catch (err) {
             console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
         }
 
-        // ST SETTINGS_UPDATED 이벤트 emit
+        // ST SETTINGS_UPDATED 이벤트 emit → ST 자체 UI 갱신
         try {
-            if (typeof eventSource !== 'undefined' && typeof event_types !== 'undefined') {
-                eventSource.emit(event_types.SETTINGS_UPDATED);
-            }
+            eventSource.emit(event_types.SETTINGS_UPDATED);
         } catch (err) {
             console.warn('[QPL] ST settings 갱신 실패:', err);
         }
