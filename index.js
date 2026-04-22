@@ -613,9 +613,8 @@ function renderDetailView($container, avatarId) {
                         <i class="fa-solid fa-floppy-disk"></i><span>수정 내용 저장</span>
                     </button>
                 </div>
-                <div class="qpl-detail-avatar-wrap${isActive ? ' qpl-detail-active' : ''}" title="클릭하여 프로필 이미지 변경">
+                <div class="qpl-detail-avatar-wrap${isActive ? ' qpl-detail-active' : ''}">
                     <img class="qpl-detail-avatar" src="${imgUrl}" alt="${safeName}" />
-                    <div class="qpl-detail-avatar-overlay"><i class="fa-solid fa-camera"></i></div>
                 </div>
                 <div class="qpl-detail-right-col">
                     <button class="qpl-detail-icon-btn qpl-detail-fav-btn${fav ? ' active' : ''}" title="${fav ? '즐겨찾기 해제' : '즐겨찾기 추가'}">
@@ -640,11 +639,6 @@ function renderDetailView($container, avatarId) {
     `);
 
     const $inner = $container.find('.qpl-detail-inner');
-
-    // 아바타 클릭 → 프사 변경 (이슈 5)
-    $inner.find('.qpl-detail-avatar-wrap').on('click', async () => {
-        await changePersonaAvatar(avatarId, $inner);
-    });
 
     // ✔ 즐겨찾기
     $inner.find('.qpl-detail-fav-btn').on('click', e => {
@@ -733,15 +727,6 @@ function renderDetailView($container, avatarId) {
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
             if ($descInput.length)  { $descInput.val(newContent); $descInput.trigger('input').trigger('change'); }
             if ($titleInput.length) { $titleInput.val(newTag);    $titleInput.trigger('input').trigger('change'); }
-
-            // ST avatar-container 내 태그 텍스트 동기화
-            const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
-            if ($panel.length) {
-                $panel.find('.ch_additional_info, .persona_description, .ch_description').text(newTag);
-            }
-        } catch (err) {
-            console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
-        }
 
         // ST SETTINGS_UPDATED 이벤트 emit → ST 자체 UI 갱신
         try {
