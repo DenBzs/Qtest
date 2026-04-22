@@ -148,8 +148,8 @@ body.square-avatars #qplBtnImg { border-radius: 2px; }
 
 .qpl-list {
     overflow-y: auto;
-    height: calc(6.5 * 48px);
-    max-height: calc(6.5 * 48px);
+    height: calc(6.5 * 48px + 20px);
+    max-height: calc(6.5 * 48px + 20px);
     padding: 4px 0;
     position: relative;
 }
@@ -263,7 +263,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-edit-mode .qpl-info { cursor: default; }
 
 .qpl-name {
-    font-size: 0.92em;
+    font-size: 0.95em;
     font-weight: 600;
     white-space: normal;
     word-break: break-word;
@@ -273,8 +273,8 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 }
 
 .qpl-tag {
-    font-size: 0.68em;
-    font-weight: 500;
+    font-size: 0.62em;
+    font-weight: 400;
     background: color-mix(in srgb, var(--qpl-accent, #8868c0) 12%, transparent);
     border: none;
     border-radius: 4px;
@@ -283,7 +283,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
     word-break: break-word;
     line-height: 1.55;
     color: var(--qpl-accent, #8868c0);
-    opacity: 0.8;
+    opacity: 0.7;
     display: inline-block;
     max-width: 100%;
 }
@@ -389,7 +389,7 @@ body.big-avatars .qpl-avatar-wrap { width: 46px; height: 46px; }
 .qpl-detail {
     display: flex;
     flex-direction: column;
-    height: calc(6.5 * 48px);
+    height: calc(6.5 * 48px + 20px);
     overflow: hidden;
 }
 
@@ -579,10 +579,10 @@ body.square-avatars .qpl-detail-avatar-wrap { border-radius: 6px; }
 /* 이름 표시 (읽기 전용) */
 .qpl-detail-name-display {
     width: 100%;
-    font-size: 1.1em;
+    font-size: 1.25em;
     font-weight: 700;
     color: inherit;
-    padding: 5px 9px;
+    padding: 4px 9px;
     box-sizing: border-box;
     opacity: 0.85;
     user-select: none;
