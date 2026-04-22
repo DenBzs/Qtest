@@ -727,6 +727,9 @@ function renderDetailView($container, avatarId) {
             const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
             if ($descInput.length)  { $descInput.val(newContent); $descInput.trigger('input').trigger('change'); }
             if ($titleInput.length) { $titleInput.val(newTag);    $titleInput.trigger('input').trigger('change'); }
+        } catch (err) {
+            console.warn('[QPL] ST 편집 패널 동기화 실패:', err);
+        }
 
         // ST SETTINGS_UPDATED 이벤트 emit → ST 자체 UI 갱신
         try {
