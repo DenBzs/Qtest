@@ -728,7 +728,13 @@ function renderDetailView($container, avatarId) {
 
         // ST 네이티브 페르소나 패널 즉시 반영
         try {
-            // avatar-container 내 태그 텍스트만 동기화 (trigger 없이)
+            // 현재 선택된 페르소나 패널의 입력창 직접 갱신
+            const $descInput  = $('#persona_description_text, textarea[name="persona_description"]');
+            const $titleInput = $('#persona_description_title, input[name="persona_description_title"]');
+            if ($descInput.length)  { $descInput.val(newContent); $descInput.trigger('input').trigger('change'); }
+            if ($titleInput.length) { $titleInput.val(newTag);    $titleInput.trigger('input').trigger('change'); }
+
+            // ST avatar-container 내 태그 텍스트 동기화
             const $panel = $(`.avatar-container[data-avatar-id="${CSS.escape(avatarId)}"]`);
             if ($panel.length) {
                 $panel.find('.ch_additional_info, .persona_description, .ch_description').text(newTag);
