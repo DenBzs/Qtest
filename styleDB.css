@@ -1,0 +1,408 @@
+/* Direction-Manager 확장 스타일 - direction / foresight(예언) 통합 컴팩트 UI */
+
+/* 컴팩트 UI 버튼 스타일 */
+.dm-compact--button {
+    order: 3;
+    display: flex;
+    align-items: center;
+    height: auto;
+    margin: 0;
+    margin-left: -5px;
+    font-size: 0.5em;
+    background-color: transparent;
+    opacity: 0.5;
+    transition: 200ms;
+    cursor: pointer;
+    border: none;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.dm-compact--button:hover {
+    opacity: 1;
+    background-color: var(--white30a);
+}
+
+.dm-compact--button.dm-compact--hasPopup {
+    opacity: 1;
+}
+
+/* 컴팩트 UI 팝업 스타일 */
+.dm-compact--popup {
+    filter: drop-shadow(1px 1px 2px var(--black50a));
+    z-index: 30000;
+    overflow: hidden;
+    border-radius: 10px;
+    background-color: var(--secondaryBg, var(--SmartThemeBlurTintColor));
+    border: 1px solid var(--SmartThemeBorderColor);
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    width: 450px;
+    max-width: 90vw;
+    transition: 200ms;
+    transform-origin: calc(100% - 0.5em) calc(100% + 0.5em);
+    scale: 1 0;
+    opacity: 0;
+}
+
+.dm-compact--popup.dm-compact--active {
+    scale: 1;
+    opacity: 1;
+}
+
+/* 헤더: 체크박스 + 제목만 (지우개는 하단 버튼줄로 이동) */
+.dm-compact--header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    background-color: var(--SmartThemeBlurTintColor);
+    gap: 8px;
+}
+
+.dm-compact--radio {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--SmartThemeBorderColor);
+    border-radius: 50%;
+    background-color: var(--black30a);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+    outline: none;
+}
+
+.dm-compact--radio:checked {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+.dm-compact--radio:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.dm-compact--title {
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--SmartThemeQuoteColor);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+/* 상단 범위 탭 줄: [전역|캐릭터] ┃ [예언|실행] */
+.dm-compact--scope-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.dm-compact--scope-group {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.dm-compact--scope-divider {
+    width: 2px;
+    align-self: stretch;
+    margin: 2px 2px;
+    background-color: var(--SmartThemeBorderColor);
+    flex-shrink: 0;
+}
+
+.dm-compact--scope-btn {
+    background: transparent;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    border-radius: 4px;
+    height: 28px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dm-compact--scope-btn--active {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+.dm-compact--scope-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 프리셋 줄 / 예언 서브탭 줄 / 빈 공간 줄: 어느 탭이든 이 영역의 높이가 동일해야
+   팝업 전체 크기가 탭에 상관없이 일정하게 유지된다. */
+.dm-compact--subrow {
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+}
+
+.dm-compact--preset-row,
+.dm-compact--foresight-tabs,
+.dm-compact--spacer-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    height: 28px;
+    box-sizing: content-box;
+}
+
+.dm-compact--preset-select {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 4px;
+    background-color: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    padding: 5px 6px;
+    font-size: 13px;
+    line-height: normal;
+    box-sizing: border-box;
+}
+
+.dm-compact--preset-btn {
+    background: transparent;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.dm-compact--preset-btn:hover:not(:disabled) {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+.dm-compact--preset-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 예언 서브탭 (1 / 2 / 스토리) - 프리셋 자리를 대체, 높이를 맞추기 위함 */
+.dm-compact--foresight-tab {
+    background: transparent;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    border-radius: 4px;
+    height: 28px;
+    padding: 0 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+}
+
+.dm-compact--foresight-tab--active {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+.dm-compact--content {
+    padding: 8px;
+}
+
+.dm-compact--textarea {
+    width: 100%;
+    min-height: 120px;
+    max-height: 200px;
+    padding: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-radius: 5px;
+    background-color: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    font-family: inherit;
+    font-size: var(--mainFontSize);
+    resize: vertical;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    line-height: 1.4;
+}
+
+.dm-compact--textarea:focus {
+    outline: none;
+}
+
+.dm-compact--textarea::placeholder {
+    color: var(--grey30);
+    opacity: 0.7;
+}
+
+.dm-compact--textarea:disabled {
+    opacity: 0.6;
+    background-color: var(--SmartThemeBlurTintColor);
+    cursor: not-allowed;
+}
+
+/* 하단 버튼 줄: 왼쪽 = 예언 슬롯 이동(신내림), 오른쪽 = 이전/현재 내용 + 지우개 */
+.dm-compact--footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    gap: 6px;
+}
+
+.dm-compact--footer-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dm-compact--foresight-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: var(--SmartThemeBodyColor);
+    opacity: 0.55;
+    font-size: 13px;
+    cursor: default;
+}
+
+.dm-compact--nav {
+    background: transparent;
+    border: 1px solid var(--SmartThemeBorderColor);
+    color: var(--SmartThemeBodyColor);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.dm-compact--nav:hover:not(:disabled) {
+    background-color: var(--SmartThemeQuoteColor);
+}
+
+.dm-compact--nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.dm-compact--indicator {
+    padding: 6px 8px;
+    color: var(--SmartThemeBodyColor);
+    opacity: 0.85;
+    font-size: 12px;
+    font-weight: 600;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    min-height: 1em;
+}
+
+/* 태블릿 반응형 디자인 */
+@media (max-width: 950px) {
+    .dm-compact--popup {
+        width: 380px;
+    }
+
+    .dm-compact--scope-row {
+        gap: 4px;
+    }
+}
+
+/* 스마트폰 반응형 디자인 */
+@media (max-width: 480px) {
+    .dm-compact--popup {
+        width: 320px;
+    }
+
+    .dm-compact--header {
+        padding: 6px 8px;
+        gap: 6px;
+    }
+
+    .dm-compact--nav,
+    .dm-compact--preset-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+
+    .dm-compact--title {
+        font-size: 13px;
+    }
+
+    .dm-compact--radio {
+        width: 12px;
+        height: 12px;
+    }
+
+    .dm-compact--scope-btn {
+        height: 24px;
+        padding: 0 4px;
+        font-size: 11px;
+    }
+
+    .dm-compact--foresight-tab {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .dm-compact--scope-row {
+        padding: 6px;
+    }
+
+    .dm-compact--preset-row,
+    .dm-compact--foresight-tabs,
+    .dm-compact--spacer-row {
+        padding: 6px;
+        height: 24px;
+    }
+
+    .dm-compact--content {
+        padding: 6px;
+    }
+
+    .dm-compact--textarea {
+        min-height: 80px;
+        font-size: calc(var(--mainFontSize) * 0.85);
+    }
+}
+
+/* 스크롤바 스타일 */
+.dm-compact--textarea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dm-compact--textarea::-webkit-scrollbar-track {
+    background: var(--black30a);
+    border-radius: 4px;
+}
+
+.dm-compact--textarea::-webkit-scrollbar-thumb {
+    background: var(--SmartThemeBorderColor);
+    border-radius: 4px;
+}
+
+.dm-compact--textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--SmartThemeQuoteColor);
+}

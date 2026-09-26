@@ -1,0 +1,12 @@
+{
+    "display_name": "🪄전개지시M",
+    "loading_order": 1,
+    "requires": [],
+    "optional": [],
+    "js": "indexDB.js",
+    "css": "styleDB.css",
+    "author": "Custom",
+    "version": "1.1.0",
+    "homePage": "https://github.com/DenBzs/Qtest",
+    "auto_update": false
+}
